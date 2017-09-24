@@ -8,45 +8,53 @@ import (
 	"time"
 )
 
-func listDir(dirname string) ([]os.FileInfo, []os.FileInfo) {
+func listDir(dirName string) []os.FileInfo {
 	var dirInfos, fileInfos []os.FileInfo
-	sortInfos, _ := ioutil.ReadDir(dirname)
-	for _, arg := range sortInfos {
+	infos, _ := ioutil.ReadDir(dirName)
+	for _, arg := range infos {
 		if arg.IsDir() {
 			dirInfos = append(dirInfos, arg)
 		} else {
 			fileInfos = append(fileInfos, arg)
 		}
 	}
-	return dirInfos, fileInfos
+	return append(dirInfos, fileInfos...) //, len(dirInfos)
+}
+
+func listPrev(dirName string) []os.FileInfo {
+	if dirName == "/" {
+		var prevInfos []os.FileInfo
+		dir, _ := os.Lstat(dirName)
+		return append(prevInfos, dir)
+	}
+	return listDir(filepath.Dir(dirName))
+}
+
+func listNext(info os.FileInfo) []os.FileInfo {
+	if info.IsDir() {
+		pathDir, _ := filepath.Abs(info.Name())
+		nextInfos := listDir(pathDir)
+		if len(nextInfos) > 0 {
+			return nextInfos
+		}
+	}
+	return nil
+}
+
+func listTwo() ([]os.FileInfo, []os.FileInfo) {
+	currentDir, _ := os.Getwd()
+	infos := listDir(currentDir)
+	prevInfos := listPrev(currentDir)
+	return prevInfos, infos
 }
 
 func main() {
 	start := time.Now()
-	currentDir, _ := os.Getwd()
-	fmt.Println(currentDir)
-	prevDir := filepath.Dir(currentDir)
-	if prevDir == "/" {
-		fmt.Println("prevDir - корневая директория")
-	} else {
-		prevDirInfos, prevFileInfos := listDir(prevDir)
-		prevResortInfos := append(prevDirInfos, prevFileInfos...)
-		for _, arg := range prevResortInfos {
-			fmt.Println(arg.Name())
-			break
-		}
-	}
-	fmt.Println(prevDir)
-	dirInfos, fileInfos := listDir(currentDir)
-	currentCursor := 0 //по умолчанию Up (0 int)
-	// prevCursor := 0 //по умолчанию Up
-	// nextCursor := 0 //по умолчанию Up
-	if len(dirInfos) > 0 {
-		fmt.Println(dirInfos[currentCursor].Name()) //выводим содержимое этой директории nextSortInfos
-	}
-	resortInfos := append(dirInfos, fileInfos...)
-	for _, arg := range resortInfos {
-		fmt.Println(arg.Name())
-	}
+	prevInfos, infos := listTwo()
+	nextInfos := listNext(infos[0])
+	fmt.Println(prevInfos[0].Name(), infos[0].Name(), nextInfos[0].Name())
+	//var currentCursor int //0 по умолчанию Up (0 int)
+	// var prevCursor int //0 по умолчанию Up
+	// var nextCursor int //по умолчанию Up
 	fmt.Printf("%.5f\n", (time.Since(start).Seconds()))
 }
