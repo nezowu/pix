@@ -1,5 +1,5 @@
 CFLAGS= -Wall -O2
-LDLIBS= -lncurses -lmenu
-P=tost
+LDFLAGS= -lncurses -lmenu
+P=rubber
 $(P): $(P).c
-	gcc $(CFLAGS) $< -o $@ $(LDLIBS)
+	gcc $(CFLAGS) $< -o $@ $(LDFLAGS)
