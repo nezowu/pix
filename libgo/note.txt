@@ -1,0 +1,17 @@
+gcc -c curs.c -lncursesw
+ar rcs libcurs.a libcurs.o
+
+mbtowc
+wctomb
+wcwidth
+wcswidth
+mbsrtowcs
+
+wcslen
+mbrlen
+mblen
+
+wint_t (широкий тип int)
+
+double-width characters
+ncurses output width characters utf-8

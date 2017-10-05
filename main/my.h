@@ -1,0 +1,1 @@
+int charwidth(char *, int *);
