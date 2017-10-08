@@ -15,7 +15,9 @@
 //#include "my.h"
 
 time_t START;
-int CURSOR_RAW = 0;
+int CURS_IND = 0;
+int OFFSET = 0;
+int MENULEN;
 WINDOW *Prev, *Raw, *Next;
 
 typedef struct col {
@@ -33,20 +35,46 @@ int bytesInPos(char *, int);
 void pwd(struct col *);
 
 int main() {
+	int key = 0;
 	START = time(NULL);
 	setlocale(LC_ALL, "");
 	signal(SIGWINCH, sig_handler);
 	signal(SIGINT, sig_handler);
 	start_ncurses();
 	pwd(&RAW);
+	if(RAW.ar_len < LINES-2)
+		MENULEN = RAW.ar_len;
+	else
+		MENULEN = LINES-2;
+
 	cadr();
-	while(1) {
-		sleep(5);
+	while(key = getch()) {
+		switch(key) {
+			case 'j':
+				if (CURS_IND < RAW.ar_len - 1) {
+					CURS_IND++;
+					if (CURS_IND > OFFSET + MENULEN - 1)
+							OFFSET++;
+					cadr();
+				}
+				break;
+			case 'k':
+				if (CURS_IND) {
+					CURS_IND--;
+					if (CURS_IND < OFFSET)
+							OFFSET--;
+					cadr();
+				}
+				break;
+			default:
+				break;
+		}
 	}
 	return 0;
 }
 
 void cadr() {
+	struct stat sb;
 	int i;
 	int C4 = COLS / 4 - 2;
 	char format_side[7], format_raw[7];
@@ -86,17 +114,26 @@ void cadr() {
 		}
 		closedir(dir);
 	}
-	for(i = 0; i < RAW.ar_len; i++) {
-		if(i == CURSOR_RAW) {
-			wattron(Raw, A_REVERSE);
-      		mvwprintw(Raw, i, 1, format_raw, RAW.ar[i]->d_name);
-			wattroff(Raw, A_REVERSE);
-		} else {
-			mvwprintw(Raw, i, 1, format_raw, RAW.ar[i]->d_name);
+//	for(i = 0; i < RAW.ar_len; i++) {
+
+	for(i = 0; i < MENULEN; i++) {
+		if(RAW.ar[i+OFFSET]->d_type == DT_DIR)
+			wattron(Raw, A_BOLD | COLOR_PAIR(5));
+		if(RAW.ar[i+OFFSET]->d_type == DT_LNK)
+			wattron(Raw, COLOR_PAIR(2));
+		if(RAW.ar[i+OFFSET]->d_type == DT_REG) {
+			lstat(RAW.ar[i+OFFSET]->d_name, &sb);
+			if(sb.st_mode & S_IXOTH)
+				wattron(Raw, COLOR_PAIR(1));
 		}
+		if(i+OFFSET == CURS_IND)
+			wattron(Raw, A_REVERSE);
+      		mvwprintw(Raw, i, 1, format_raw, RAW.ar[i+OFFSET]->d_name);
+		wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
 	}
 	mvwprintw(Next, 1, 1, format_side, "Next");
 
+	refresh();
 	wrefresh(Prev);
 	wrefresh(Raw);
 	wrefresh(Next);
@@ -104,7 +141,14 @@ void cadr() {
 
 void start_ncurses(void) {
 	initscr();
-//	start_color();
+	cbreak();
+//	keypad(stdscr,TRUE);
+	start_color();
+	init_pair(1,COLOR_GREEN,0);
+	init_pair(2,COLOR_CYAN,0);
+	init_pair(3,COLOR_RED,0);
+	init_pair(4,COLOR_YELLOW,0);
+	init_pair(5,COLOR_BLUE,0);
 	noecho();
 	curs_set(FALSE);
 	int Y = LINES-2;
@@ -116,6 +160,7 @@ void start_ncurses(void) {
 
 static void sig_handler(int signo) {
 	if(signo == SIGWINCH) {
+		int tmp;
 		endwin();
 		refresh();
 		clear();
@@ -129,6 +174,13 @@ static void sig_handler(int signo) {
 		wresize(Next, Y, X);
 		mvwin(Raw, 1, X);
 		mvwin(Next, 1, COLS/2+X);
+		OFFSET = 0;
+		if(RAW.ar_len < LINES-2)
+			MENULEN = RAW.ar_len;
+		else
+			MENULEN = LINES-2;
+		if(CURS_IND > OFFSET + MENULEN-1)
+			OFFSET = CURS_IND - MENULEN+1;
 		cadr();
 	}
 	else if(signo == SIGINT) {
@@ -181,9 +233,9 @@ void pwd(struct col *raw) {
 	DIR *raw_col = opendir(buf);
 	size_t len = sizeof(struct dirent);
 	for(i = 0; (entry_raw = readdir(raw_col)) != NULL; i++) {
-		lstat(entry_raw->d_name, &status);
+		lstat(entry_raw->d_name, &status); //находим индекс файла с последним временем доступа или 0 со старта
 		if(status.st_atime > t_raw) {
-			CURSOR_RAW = i;
+			CURS_IND = i;
 			t_raw = status.st_atime;
 		}
 		if(entry_raw->d_type == DT_DIR)
