@@ -1,23 +1,11 @@
-// rubber.c
-#include <ncurses.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <strings.h>
-#include <locale.h>
-#include <wchar.h>
-#include <libgen.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <time.h>
-//#include "my.h"
+// консольный файловый пейджер rubber.c
+#include "my.h"
 
 time_t START;
-int CURS_IND = 0;
+int CURS = 0;
 int OFFSET = 0;
 int MENULEN;
+int ACCESS;
 WINDOW *Prev, *Raw, *Next;
 
 typedef struct col {
@@ -30,11 +18,12 @@ Col PREV, RAW, NEXT;
 void cadr();
 static void sig_handler(int);
 void start_ncurses(void);
-int charwidth(char *, int *);
+//int charwidth(char *, int *);
 int bytesInPos(char *, int);
 void pwd(struct col *);
 
 int main() {
+	char buf[128];
 	int key = 0;
 	START = time(NULL);
 	setlocale(LC_ALL, "");
@@ -51,20 +40,78 @@ int main() {
 	while(key = getch()) {
 		switch(key) {
 			case 'j':
-				if (CURS_IND < RAW.ar_len - 1) {
-					CURS_IND++;
-					if (CURS_IND > OFFSET + MENULEN - 1)
+				if (CURS < RAW.ar_len - 1) {
+					CURS++;
+					if (CURS > OFFSET + MENULEN - 1)
 							OFFSET++;
 					cadr();
 				}
 				break;
 			case 'k':
-				if (CURS_IND) {
-					CURS_IND--;
-					if (CURS_IND < OFFSET)
+				if (CURS) {
+					CURS--;
+					if (CURS < OFFSET)
 							OFFSET--;
 					cadr();
 				}
+				break;
+			case 'G':
+				CURS = RAW.ar_len-1;
+				OFFSET = 0;
+				if(CURS > OFFSET + MENULEN-1)
+					OFFSET = CURS - MENULEN+1;
+				cadr();
+				break;
+			case 'g':
+				CURS = 0;
+				OFFSET = 0;
+				cadr();
+				break;
+			case 'h':
+				if(!strcasecmp(getcwd(buf, 128), "/"))
+					break;
+				CURS = 0;
+				OFFSET = 0;
+				MENULEN = 0;
+
+				for(int i = 0; i < RAW.ar_len; i++) {
+					free(RAW.ar[i]);
+				}
+				free(RAW.ar);
+
+				chdir(dirname(getcwd(buf, 128)));
+
+				pwd(&RAW);
+				if(RAW.ar_len < LINES-2)
+					MENULEN = RAW.ar_len;
+				else
+					MENULEN = LINES-2;
+				cadr();
+				break;
+			case 'l':
+				if(ACCESS)
+					break;
+				getcwd(buf, 128);
+				strcat(buf, "/");
+				strcat(buf, RAW.ar[CURS]->d_name);
+				chdir(buf);
+				memset(buf, 0, 128);
+
+				CURS = 0;
+				OFFSET = 0;
+				MENULEN = 0;
+
+				for(int i = 0; i < RAW.ar_len; i++) {
+					free(RAW.ar[i]);
+				}
+				free(RAW.ar);
+
+				pwd(&RAW);
+				if(RAW.ar_len < LINES-2)
+					MENULEN = RAW.ar_len;
+				else
+					MENULEN = LINES-2;
+				cadr();
 				break;
 			default:
 				break;
@@ -74,12 +121,17 @@ int main() {
 }
 
 void cadr() {
+	ACCESS = 1;
 	struct stat sb;
 	int i;
 	int C4 = COLS / 4 - 2;
 	char format_side[7], format_raw[7];
 	sprintf(format_side, "%%-%ds", C4-2);
 	sprintf(format_raw, "%%-%ds", COLS/2-2);
+
+	wclear(Prev);
+	wclear(Raw);
+	wclear(Next);
 	
 	box(Prev, 0, 0);
 	box(Raw, 0, 0);
@@ -93,10 +145,10 @@ void cadr() {
 	getcwd(buf, 128);
 	char *prev_dir;
 	dirname(buf);
-	char str_prev[128] = {0};
-	if(!strcasecmp(buf, "/")) {
-		memcpy(str_prev, "/", 1);
-		mvwprintw(Prev, 0, 1, format_side, str_prev);
+	char str_line[128] = {0};
+	if(!strcasecmp(currentdir, "/")) {
+		memcpy(str_line, "/", 1);
+		mvwprintw(Prev, 0, 1, format_side, str_line);
 	} else {
 		dir = opendir(buf);
 		for(i = 0;(entry_prev = readdir(dir)) != NULL; i++) {
@@ -108,13 +160,12 @@ void cadr() {
 				i--;
 				continue;
 			}
-			memset(str_prev, 0, 128);
-			memcpy(str_prev, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4));
-			mvwprintw(Prev, i, 1, format_side, str_prev);
+			memset(str_line, 0, 128);
+			memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4));
+			mvwprintw(Prev, i, 1, format_side, str_line);
 		}
 		closedir(dir);
 	}
-//	for(i = 0; i < RAW.ar_len; i++) {
 
 	for(i = 0; i < MENULEN; i++) {
 		if(RAW.ar[i+OFFSET]->d_type == DT_DIR)
@@ -126,12 +177,46 @@ void cadr() {
 			if(sb.st_mode & S_IXOTH)
 				wattron(Raw, COLOR_PAIR(1));
 		}
-		if(i+OFFSET == CURS_IND)
+		if(i+OFFSET == CURS)
 			wattron(Raw, A_REVERSE);
       		mvwprintw(Raw, i, 1, format_raw, RAW.ar[i+OFFSET]->d_name);
 		wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
 	}
-	mvwprintw(Next, 1, 1, format_side, "Next");
+	/*выводим на экран третий столбец*/
+	if(RAW.ar[CURS]->d_type == DT_DIR ) {
+		dir = opendir(RAW.ar[CURS]->d_name);
+		if(dir) {
+			ACCESS = 0;
+			for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
+				if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
+					i--;
+					continue;
+				}
+				else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
+					i--;
+					continue;
+				}
+				memset(str_line, 0, 128);
+				memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4));
+				mvwprintw(Next, i, 1, format_side, str_line);
+			}
+			closedir(dir);
+			if(!i) {
+				memset(str_line, 0, 128);
+				memcpy(str_line, "Empty", bytesInPos("Empty", C4));
+				wattron(Next, COLOR_PAIR(3));
+				mvwprintw(Next, 0, 1, format_side, str_line);
+				wattroff(Next, COLOR_PAIR(3));
+			}
+		} else {
+			ACCESS = 1;
+			memset(str_line, 0, 128);
+			memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4));
+			wattron(Next, COLOR_PAIR(3));
+			mvwprintw(Next, 0, 1, format_side, str_line);
+			wattroff(Next, COLOR_PAIR(3));
+		}
+	}
 
 	refresh();
 	wrefresh(Prev);
@@ -179,8 +264,8 @@ static void sig_handler(int signo) {
 			MENULEN = RAW.ar_len;
 		else
 			MENULEN = LINES-2;
-		if(CURS_IND > OFFSET + MENULEN-1)
-			OFFSET = CURS_IND - MENULEN+1;
+		if(CURS > OFFSET + MENULEN-1)
+			OFFSET = CURS - MENULEN+1;
 		cadr();
 	}
 	else if(signo == SIGINT) {
@@ -235,7 +320,7 @@ void pwd(struct col *raw) {
 	for(i = 0; (entry_raw = readdir(raw_col)) != NULL; i++) {
 		lstat(entry_raw->d_name, &status); //находим индекс файла с последним временем доступа или 0 со старта
 		if(status.st_atime > t_raw) {
-			CURS_IND = i;
+			CURS = i;
 			t_raw = status.st_atime;
 		}
 		if(entry_raw->d_type == DT_DIR)
@@ -257,13 +342,8 @@ void pwd(struct col *raw) {
 			memcpy((void *)raw->ar[count_dir], (void *)entry_raw, len);
 			count_dir++;
 		}
-
 	}
 	closedir(raw_col);
-//	for(i = 0; i < RAW_LEN; i++) {
-//		free(RAW[i]);
-//	}
-//	free(RAW);
 	return;
 }
 //void pwd_prev(void) {
