@@ -6,6 +6,7 @@ int CURS = 0;
 int OFFSET = 0;
 int MENULEN;
 int ACCESS;
+int HIDDEN = 1;
 WINDOW *Prev, *Raw, *Next;
 
 typedef struct col {
@@ -20,9 +21,11 @@ static void sig_handler(int);
 void start_ncurses(void);
 //int charwidth(char *, int *);
 int bytesInPos(char *, int);
-void pwd(struct col *);
+int pwd(struct col *);
+void atime(char *);
 
 int main() {
+	char *tmp;
 	char buf[128];
 	int key = 0;
 	START = time(NULL);
@@ -70,6 +73,7 @@ int main() {
 			case 'h':
 				if(!strcasecmp(getcwd(buf, 128), "/"))
 					break;
+				atime(RAW.ar[CURS]->d_name);
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
@@ -81,7 +85,7 @@ int main() {
 
 				chdir(dirname(getcwd(buf, 128)));
 
-				pwd(&RAW);
+				CURS = pwd(&RAW);
 				if(RAW.ar_len < LINES-2)
 					MENULEN = RAW.ar_len;
 				else
@@ -91,6 +95,7 @@ int main() {
 			case 'l':
 				if(ACCESS)
 					break;
+				atime(RAW.ar[CURS]->d_name);
 				getcwd(buf, 128);
 				strcat(buf, "/");
 				strcat(buf, RAW.ar[CURS]->d_name);
@@ -106,12 +111,37 @@ int main() {
 				}
 				free(RAW.ar);
 
-				pwd(&RAW);
+				CURS = pwd(&RAW);
 				if(RAW.ar_len < LINES-2)
 					MENULEN = RAW.ar_len;
 				else
 					MENULEN = LINES-2;
 				cadr();
+				break;
+			case 'a':
+				tmp = RAW.ar[CURS]->d_name;
+				OFFSET = 0;
+				CURS = 0;
+				HIDDEN = (HIDDEN)? 0: 1;	
+				pwd(&RAW);
+				for(int i = 0; i < RAW.ar_len; i++) {
+					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
+						CURS = i;
+						break;
+					}
+				}
+				if(RAW.ar_len < LINES-2)
+					MENULEN = RAW.ar_len;
+				else
+					MENULEN = LINES-2;
+				cadr();
+				break;
+			case 'q':
+				delwin(Prev);
+				delwin(Raw);
+				delwin(Next);
+				endwin();
+				exit(EXIT_SUCCESS);
 				break;
 			default:
 				break;
@@ -307,44 +337,81 @@ int bytesInPos(char *s, int pos) { //задача нати размер в ба�
 	return count;
 }
 
-void pwd(struct col *raw) {
+int pwd(struct col *raw) {
+	int ar_len;
+	int flag = HIDDEN;
 	time_t t_raw = START;
-	raw->ar_len = 0;
-	struct dirent *entry_raw;
+	struct dirent **entry;
 	struct stat status;
-	int i, count_dir = 0, count_file = 0;
+	int i, j = 0, count_dir = 0, count_file = 0, count_hid = 0, ind = 0, count_hiddir = 0;
 	char buf[128] = {0};
 	getcwd(buf, 128);
-	DIR *raw_col = opendir(buf);
-	size_t len = sizeof(struct dirent);
-	for(i = 0; (entry_raw = readdir(raw_col)) != NULL; i++) {
-		lstat(entry_raw->d_name, &status); //находим индекс файла с последним временем доступа или 0 со старта
-		if(status.st_atime > t_raw) {
-			CURS = i;
-			t_raw = status.st_atime;
-		}
-		if(entry_raw->d_type == DT_DIR)
+	ar_len = scandir(buf, &entry, 0, alphasort);
+	raw->ar = (struct dirent **)calloc(ar_len, sizeof(struct dirent *));
+	for(i = 0; i != ar_len; i++) {
+		raw->ar[i] = (struct dirent *)calloc(1, sizeof(struct dirent));
+		if(entry[i]->d_type == DT_DIR) {
 			count_dir++;
-		else
-			count_file++;
+			if(entry[i]->d_name[0] == '.')
+				count_hiddir++;
+		}
 	}
-	raw->ar_len = count_dir + count_file;
-	count_file = 0;
-	rewinddir(raw_col);
-	raw->ar = (struct dirent **)calloc(raw->ar_len, sizeof(struct dirent *));
-	for(i = 0; i < raw->ar_len; i++)
-		raw->ar[i] = (struct dirent *)calloc(1, len);
-	for(i = 0; (entry_raw = readdir(raw_col)) != NULL; i++) {
-		if(entry_raw->d_type == 4) {
-			memcpy((void *)raw->ar[count_file], (void *)entry_raw, len);
+
+//	for(i = 0; (entry_raw = readdir(raw_col)) != NULL; i++) {
+//		lstat(entry_raw->d_name, &status); //находим индекс файла с последним временем доступа или 0 со старта
+//		if(status.st_atime > t_raw) {
+//			CURS = i;
+//			t_raw = status.st_atime;
+//		}
+	count_dir -= 2;
+	if(flag)
+		count_dir = count_dir - count_hiddir + 2;
+	for(i = 0; i != ar_len; i++) {
+		if(entry[i]->d_type == DT_DIR) {
+			if(j < 2) {
+				j++;
+				continue;
+			}
+			if(flag && entry[i]->d_name[0] == '.') {
+				continue;
+			}
+			memcpy((void *)raw->ar[count_file], (void *)entry[i], sizeof(struct dirent));
 			count_file++;
 		} else {
-			memcpy((void *)raw->ar[count_dir], (void *)entry_raw, len);
+			if(flag && entry[i]->d_name[0] == '.')
+				continue;
+			memcpy((void *)raw->ar[count_dir], (void *)entry[i], sizeof(struct dirent));
 			count_dir++;
 		}
+		free(entry[i]);
 	}
-	closedir(raw_col);
-	return;
+	free(entry);
+	for(i = 0; i < count_dir; i++) { //if own == $user else
+		lstat(raw->ar[i]->d_name, &status);
+		if(status.st_atime > t_raw) {
+			ind = i;
+			t_raw = status.st_atime;
+		}
+	}
+	raw->ar_len = count_dir;
+	return ind;
+}
+
+void atime(char *path) {
+	struct stat status;
+	struct utimbuf buf;
+	if(lstat(RAW.ar[CURS]->d_name, &status) == -1) { //if own == $user else
+		perror("lstat:403");
+		exit(EXIT_FAILURE);
+	}
+	buf.modtime = status.st_mtime;
+	buf.actime = time(NULL);
+	if(utime(RAW.ar[CURS]->d_name, NULL) == -1) {
+		if(errno == EACCES) {
+			perror("utime:411");
+			exit(EXIT_FAILURE);
+		}
+	}
 }
 //void pwd_prev(void) {
 //	struct dirent *entry_prev;
@@ -356,67 +423,3 @@ void pwd(struct col *raw) {
 //		PREV_LEN++;
 //	}
 //	rewinddir(prev_col);
-
-//int barmenu(const char **array,const int row, const int col, const int arrlen, const int wide, int menulen, int selection)
-//{
-//	int counter,offset=0,ky=0;
-//	char formatstring[7];
-//	curs_set(0);
-//
-//	if (arrlen < menulen)
-//		menulen=arrlen;
-//
-//	if (selection > menulen)
-//		offset=selection-menulen+1;
-//
-//	sprintf(formatstring,"%%-%ds",wide); // remove - sign to right-justify the menu items
-//
-//	while(1)
-//	{
-//		for (counter=0; counter < menulen; counter++)
-//		{
-//			if(counter+offset < 4)
-//				attron(A_BOLD | COLOR_PAIR(5));
-//			if (counter+offset==selection)
-//				attron(A_REVERSE);
-//			mvprintw(row+counter,col,formatstring,array[counter+offset]);
-//			attroff(A_REVERSE | A_BOLD | COLOR_PAIR(5));
-//		}
-//
-//		ky=getch();
-//
-//		switch(ky)
-//		{
-//			case 'k':
-//				if (selection)
-//				{
-//					selection--;
-//					if (selection < offset+1)
-//						if (offset > 0)
-//							offset--;
-//				}
-//				break;
-//			case 'j':
-//				if (selection < arrlen-1)
-//				{
-//					selection++;
-//					if (selection > offset+menulen-2)
-//						if (offset < menulen)
-//							offset++;
-//				}
-//				break;
-//			case 'g':
-//				selection=0;
-//				offset=0;
-//				break;
-//			case 'G':
-//				selection=arrlen-1;
-//				offset=arrlen-menulen;
-//				break;
-//			case 10: //enter
-//				return selection;
-//				break;
-//		}
-//	}
-//	return -1;
-//}

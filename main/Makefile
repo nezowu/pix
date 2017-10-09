@@ -1,11 +1,18 @@
+.PHONY : clean, install, uninstall
 CFLAGS= -Wall -Wextra -O2
 LDFLAGS= -lncursesw
-P=rubber
-$(P): $(P).o rub.o
+P=rain
+$(P): $(P).o wch.o
 	gcc $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-rub.o: rub.c
+wch.o: wch.c
 	gcc -c $<
 
-rubber.o: rubber.c
+rain.o: rain.c
 	gcc -c $<
+	
+clean :
+	rm -f $(P) *~ .*~ .*.swp *.o
+
+install : $(P)
+	cp $(P) /usr/local/bin
