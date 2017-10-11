@@ -14,24 +14,29 @@
 #include <utime.h>
 #include <errno.h>
 
-int charwidth(char *, int *);
-//time_t START;
-//int CURS = 0;
-//int OFFSET = 0;
-//int MENULEN;
-//int ACCESS;
-//WINDOW *Prev, *Raw, *Next;
-//
-//typedef struct col {
-//	struct dirent **ar;
-//	int ar_len;
-//} Col;
-//
-//Col PREV, RAW, NEXT;
+time_t START;
+int CURS;
+int OFFSET;
+int MENULEN;
+int ACCESS;
+int HIDDEN;
+WINDOW *Prev, *Raw, *Next;
+
+typedef struct col {
+	struct dirent **ar;
+	int ar_len;
+} Col;
+
+Col PREV, RAW, NEXT;
 //
 //void cadr();
 //static void sig_handler(int);
 //void start_ncurses(void);
 //int charwidth(char *, int *);
-//int bytesInPos(char *, int);
+int bytesInPos(char *, int, int *);
 //void pwd(struct col *);
+void cadr();
+static void sig_handler(int);
+void start_ncurses(void);
+int pwd(struct col *, char *);
+void atime(char *);

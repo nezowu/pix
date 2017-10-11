@@ -14,7 +14,7 @@ int main() {
 	signal(SIGWINCH, sig_handler);
 	signal(SIGINT, sig_handler);
 	start_ncurses();
-	pwd(&RAW, getcwd(buf, 128));
+	pwd(&RAW);
 	if(RAW.ar_len < LINES-2)
 		MENULEN = RAW.ar_len;
 	else
@@ -66,7 +66,7 @@ int main() {
 				dirname(buf);
 				chdir(buf);
 
-				pwd(&RAW, buf);
+				pwd(&RAW);
 
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(temp, RAW.ar[i]->d_name)) {
@@ -92,6 +92,7 @@ int main() {
 				strcat(buf, "/");
 				strcat(buf, RAW.ar[CURS]->d_name);
 				chdir(buf);
+				memset(buf, 0, 128);
 
 				CURS = 0;
 				OFFSET = 0;
@@ -102,7 +103,7 @@ int main() {
 				}
 				free(RAW.ar);
 
-				CURS = pwd(&RAW, buf);
+				CURS = pwd(&RAW);
 				if(RAW.ar_len < LINES-2)
 					MENULEN = RAW.ar_len;
 				else
@@ -116,7 +117,7 @@ int main() {
 				OFFSET = 0;
 				CURS = 0;
 				HIDDEN = (HIDDEN)? 0: 1;	
-				pwd(&RAW, getcwd(buf, 128));
+				pwd(&RAW);
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
 						CURS = i;
@@ -141,7 +142,6 @@ int main() {
 			default:
 				break;
 		}
-//		memset(buf, 0, 128);
 	}
 	return 0;
 }
@@ -149,15 +149,11 @@ int main() {
 void cadr() {
 	ACCESS = 1;
 	struct stat sb;
-
-	int temp, add_format;
-
 	int i;
-	int C2 = COLS / 2 - 2;
 	int C4 = COLS / 4 - 2;
 	char format_side[7], format_raw[7];
 	sprintf(format_side, "%%-%ds", C4-2);
-//	sprintf(format_raw, "%%-%ds", COLS/2-2);
+	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
 	wclear(Prev);
 	wclear(Raw);
@@ -191,8 +187,7 @@ void cadr() {
 				continue;
 			}
 			memset(str_line, 0, 128);
-			int one;
-			memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &one));
+			memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4));
 			mvwprintw(Prev, i, 1, format_side, str_line);
 		}
 		closedir(dir);
@@ -210,14 +205,7 @@ void cadr() {
 		}
 		if(i+OFFSET == CURS)
 			wattron(Raw, A_REVERSE);
-		temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
-		memset(str_line, 0, 128);
-		memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
-
-		memset(format_raw, 0, 7);
-		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
-
-     		mvwprintw(Raw, i, 1, format_raw, str_line);
+      		mvwprintw(Raw, i, 1, format_raw, RAW.ar[i+OFFSET]->d_name);
 		wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
 	}
 	/*выводим на экран третий столбец*/
@@ -235,15 +223,13 @@ void cadr() {
 					continue;
 				}
 				memset(str_line, 0, 128);
-				int two;
-				memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
+				memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4));
 				mvwprintw(Next, i, 1, format_side, str_line);
 			}
 			closedir(dir);
 			if(!i) {
 				memset(str_line, 0, 128);
-				int three;
-				memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
+				memcpy(str_line, "Empty", bytesInPos("Empty", C4));
 				wattron(Next, COLOR_PAIR(3));
 				mvwprintw(Next, 0, 1, format_side, str_line);
 				wattroff(Next, COLOR_PAIR(3));
@@ -251,8 +237,7 @@ void cadr() {
 		} else {
 			ACCESS = 1;
 			memset(str_line, 0, 128);
-			int four;
-			memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
+			memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4));
 			wattron(Next, COLOR_PAIR(3));
 			mvwprintw(Next, 0, 1, format_side, str_line);
 			wattroff(Next, COLOR_PAIR(3));
@@ -319,16 +304,16 @@ static void sig_handler(int signo) {
 	}
 }
 
-int pwd(struct col *raw, char *path) {
+int pwd(struct col *raw) {
 	int i, ar_len;
 	int flag = HIDDEN;
 	time_t t_raw = START;
 	struct dirent **entry;
 	struct stat status;
 	int count_dir = 0, count_file = 0, count_hid = 0, ind = 0, count_hiddir = 0;
-//	char buf[128] = {0}; // char *path
-//	getcwd(buf, 128); // +убираем в параметры
-	ar_len = scandir(path, &entry, 0, alphasort);
+	char buf[128] = {0}; // char *path
+	getcwd(buf, 128); // +убираем в параметры
+	ar_len = scandir(buf, &entry, 0, alphasort);
 	raw->ar = (struct dirent **)calloc(ar_len, sizeof(struct dirent *));
 	for(i = 0; i != ar_len; i++) {
 		raw->ar[i] = (struct dirent *)calloc(1, sizeof(struct dirent));

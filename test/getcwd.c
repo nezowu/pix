@@ -7,10 +7,12 @@
 int main() {
 //	struct dirent *entry;
 //	DIR *dir;
+	char *temp;
 	char buf[128] = {0};
 	printf("%s\n", getcwd(buf, 128));
-	dirname(buf);
-	printf("%s\n", buf);
+//	dirname(buf);
+	temp = basename(buf);
+	printf("%s\n", temp);
 //	printf("%s\n", dirname(buf));
 //	dir = opendir(dirname(buf));
 //	while((entry = readdir(dir)) != NULL) {
