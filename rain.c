@@ -53,7 +53,8 @@ int main() {
 			case 'h':
 				if(!strcasecmp(getcwd(buf, 128), "/"))
 					break;
-				atime(RAW.ar[CURS]->d_name);
+				if(RAW.ar_len > 0)
+					atime(RAW.ar[CURS]->d_name);
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
@@ -162,10 +163,11 @@ void cadr() {
 	wclear(Prev);
 	wclear(Raw);
 	wclear(Next);
+//	clear();
 	
-	box(Prev, 0, 0);
-	box(Raw, 0, 0);
-	box(Next, 0, 0);
+//	box(Prev, 0, 0);
+//	box(Raw, 0, 0);
+//	box(Next, 0, 0);
 
 	struct dirent *entry_prev;
 	DIR *dir;
@@ -268,7 +270,6 @@ void cadr() {
 void start_ncurses(void) {
 	initscr();
 	cbreak();
-//	keypad(stdscr,TRUE);
 	start_color();
 	init_pair(1,COLOR_GREEN,0);
 	init_pair(2,COLOR_CYAN,0);
@@ -326,8 +327,6 @@ int pwd(struct col *raw, char *path) {
 	struct dirent **entry;
 	struct stat status;
 	int count_dir = 0, count_file = 0, count_hid = 0, ind = 0, count_hiddir = 0;
-//	char buf[128] = {0}; // char *path
-//	getcwd(buf, 128); // +убираем в параметры
 	ar_len = scandir(path, &entry, 0, alphasort);
 	raw->ar = (struct dirent **)calloc(ar_len, sizeof(struct dirent *));
 	for(i = 0; i != ar_len; i++) {
@@ -375,16 +374,11 @@ void atime(char *path) {
 	struct utimbuf buf;
 	if(lstat(RAW.ar[CURS]->d_name, &status) == -1) { //if own == $user else
 		perror("lstat:403");
-//		exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);
 	}
 	buf.modtime = status.st_mtime;
 	buf.actime = time(NULL);
-	if(utime(RAW.ar[CURS]->d_name, &buf) == -1) {
-		if(errno == EACCES) {
-			perror("utime:411");
-			exit(EXIT_FAILURE);
-		}
-	}
+	utime(RAW.ar[CURS]->d_name, &buf);
 }
 //void pwd_prev(void) {
 //	struct dirent *entry_prev;

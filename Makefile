@@ -15,4 +15,7 @@ clean :
 	rm -f $(P) *~ .*~ .*.swp *.o
 
 install : $(P)
-	cp $(P) /usr/local/bin
+	cp $(P) /usr/bin
+
+uninstall :
+	rm /usr/bin/$(P)
