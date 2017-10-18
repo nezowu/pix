@@ -290,10 +290,11 @@ static void sig_handler(int signo) {
 		int tmp;
 		endwin();
 		refresh();
-		clear();
 		wclear(Prev);
 		wclear(Raw);
 		wclear(Next);
+//		clear();
+//		wresize(stdscr, COLS, LINES); //
 		int X = COLS/4;
 		int Y = LINES-2;
 		wresize(Prev, Y, X);
