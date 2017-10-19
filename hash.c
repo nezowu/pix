@@ -32,7 +32,10 @@ char * searchHash(char *path, char * name) {
 	uint32_t hash = getHash(path);
 	for(i = 0; i < hashlen; i++) {
 		if(Hash[i].hash == hash) {
-			memcpy(Hash[i].name, name, len);
+			if(len) {
+				memset(Hash[i].name, 0, 128);
+				memcpy(Hash[i].name, name, len);
+			}
 			memcpy(&tmp, &Hash[i], sizeof(struct nm));
 			for(; i > 0; i--) {
 				memset(&Hash[i], 0, sizeof(struct nm));

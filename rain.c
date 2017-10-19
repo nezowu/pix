@@ -90,9 +90,8 @@ int main() {
 			case 'l':
 				if(ACCESS)
 					break;
-//				atime(RAW.ar[CURS]->d_name);
 				getcwd(buf, 128);
-				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
+//				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
 				if(buf[1] != '\0')
 					strcat(buf, "/");
 				strcat(buf, RAW.ar[CURS]->d_name);
