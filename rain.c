@@ -20,6 +20,7 @@ int main() {
 	else
 		MENULEN = LINES-2;
 	cadr();
+	initHash();
 	while(key = getch()) {
 		switch(key) {
 			case 'j':
@@ -54,7 +55,8 @@ int main() {
 				if(!strcasecmp(getcwd(buf, 128), "/"))
 					break;
 				if(RAW.ar_len > 0)
-					atime(RAW.ar[CURS]->d_name);
+//					atime(RAW.ar[CURS]->d_name);
+					searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем базу
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
@@ -88,9 +90,11 @@ int main() {
 			case 'l':
 				if(ACCESS)
 					break;
-				atime(RAW.ar[CURS]->d_name);
+//				atime(RAW.ar[CURS]->d_name);
 				getcwd(buf, 128);
-				strcat(buf, "/");
+				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
+				if(buf[1] != '\0')
+					strcat(buf, "/");
 				strcat(buf, RAW.ar[CURS]->d_name);
 				chdir(buf);
 
@@ -103,7 +107,17 @@ int main() {
 				}
 				free(RAW.ar);
 
-				CURS = pwd(&RAW, buf);
+//				CURS = pwd(&RAW, buf);
+				pwd(&RAW, buf);
+				if((tmp = searchHash(buf, "")) != NULL) {
+					for(int i = 0; i < RAW.ar_len; i++) {
+						if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
+							CURS = i;
+							break;
+						}
+					}
+				}
+
 				if(RAW.ar_len < LINES-2)
 					MENULEN = RAW.ar_len;
 				else
@@ -359,28 +373,28 @@ int pwd(struct col *raw, char *path) {
 		free(entry[i]);
 	}
 	free(entry);
-	for(i = 0; i < count_dir; i++) { //if own == $user else
-		lstat(raw->ar[i]->d_name, &status);
-		if(status.st_atime > t_raw) {
-			ind = i;
-			t_raw = status.st_atime;
-		}
-	}
+//	for(i = 0; i < count_dir; i++) { //if own == $user else
+//		lstat(raw->ar[i]->d_name, &status);
+//		if(status.st_atime > t_raw) {
+//			ind = i;
+//			t_raw = status.st_atime;
+//		}
+//	}
 	raw->ar_len = count_dir;
 	return ind;
 }
 
-void atime(char *path) {
-	struct stat status;
-	struct utimbuf buf;
-	if(lstat(RAW.ar[CURS]->d_name, &status) == -1) { //if own == $user else
-		perror("lstat:403");
-		exit(EXIT_FAILURE);
-	}
-	buf.modtime = status.st_mtime;
-	buf.actime = time(NULL);
-	utime(RAW.ar[CURS]->d_name, &buf);
-}
+//void atime(char *path) {
+//	struct stat status;
+//	struct utimbuf buf;
+//	if(lstat(RAW.ar[CURS]->d_name, &status) == -1) { //if own == $user else
+//		perror("lstat:403");
+//		exit(EXIT_FAILURE);
+//	}
+//	buf.modtime = status.st_mtime;
+//	buf.actime = time(NULL);
+//	utime(RAW.ar[CURS]->d_name, &buf);
+//}
 //void pwd_prev(void) {
 //	struct dirent *entry_prev;
 //	int i;

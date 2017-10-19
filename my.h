@@ -13,6 +13,7 @@
 #include <time.h>
 #include <utime.h>
 #include <errno.h>
+#include <stdint.h>
 
 time_t START;
 int CURS;
@@ -40,3 +41,6 @@ static void sig_handler(int);
 void start_ncurses(void);
 int pwd(struct col *, char *);
 void atime(char *);
+void initHash(void);
+uint32_t getHash(char *);
+char * searchHash(char *, char *);

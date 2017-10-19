@@ -1,4 +1,3 @@
-//#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #define HASHSIZE 255
@@ -26,37 +25,14 @@ uint32_t getHash(char * key){
 	return i;
 }
 
-//void initHash(void);
-//uint32_t getHash(char *);
-//char * searchHash(char *);
-
-//int main() {
-////	memset(Hash, 0, sizeof(struct nm) * HASHSIZE);
-////	hashlen = 0;
-//	initHash();
-//	int i;
-////	for(i = 0; i < 10; i++)
-////		Hash[i] = (Nm *)calloc(1, sizeof(struct name));
-//	while(1) {
-//		char buf[128];
-//		printf("%s", "Enter path to dir: ");
-//		scanf("%127[^\n]%*c", buf);
-//		searchHash(buf);	
-//		for(i = 0; i < hashlen; i++)
-//			printf("%u %s %zu\n", Hash[i].hash, Hash[i].name, Hash[i].len);
-//		if(buf[0] == 'q')
-//			break;
-//	}
-//}
-
-char * searchHash(char *str) {
+char * searchHash(char *path, char * name) {
 	int i;
-	size_t len = strlen(str);
+	size_t len = strlen(name);
 	Nm tmp;
-	uint32_t hash = getHash(str);
+	uint32_t hash = getHash(path);
 	for(i = 0; i < hashlen; i++) {
-		if(Hash[i].hash == hash && Hash[i].len == len) {
-			memcpy(Hash[i].name, str, strlen(str));
+		if(Hash[i].hash == hash) {
+			memcpy(Hash[i].name, name, len);
 			memcpy(&tmp, &Hash[i], sizeof(struct nm));
 			for(; i > 0; i--) {
 				memset(&Hash[i], 0, sizeof(struct nm));
@@ -66,6 +42,8 @@ char * searchHash(char *str) {
 			return Hash[0].name;
 		}
 	}
+	if(!len)
+		return NULL;
 	if(hashlen < HASHSIZE)
 		hashlen++;
 	for(i = hashlen; i > 0; i--) {
@@ -74,7 +52,7 @@ char * searchHash(char *str) {
 	}
 	memset(&Hash[0], 0, sizeof(struct nm));
 	Hash[0].hash = hash;
-	memcpy(Hash[0].name, str, strlen(str));
+	memcpy(Hash[0].name, name, len);
 	Hash[i].len = len;
 	return Hash[0].name;
 }
