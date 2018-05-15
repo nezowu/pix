@@ -14,6 +14,8 @@
 #include <utime.h>
 #include <errno.h>
 #include <stdint.h>
+#define ERROR() {perror(NULL); goto END_PROG;} //нужно вести лог
+#define END() goto END_PROG;
 
 time_t START;
 int CURS;
@@ -29,13 +31,7 @@ typedef struct col {
 } Col;
 
 Col PREV, RAW, NEXT;
-//
-//void cadr();
-//static void sig_handler(int);
-//void start_ncurses(void);
-//int charwidth(char *, int *);
 int bytesInPos(char *, int, int *);
-//void pwd(struct col *);
 void cadr();
 static void sig_handler(int);
 void start_ncurses(void);

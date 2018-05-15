@@ -1,20 +1,21 @@
 // консольный файловый пейджер rain.c wch.c my.h
 #include "my.h"
+#define SIZ 256
 
 int main() {
 	CURS = 0;
 	OFFSET = 0;
 	HIDDEN = 1;
 	char *tmp;
-	char buf[128];
-	char temp[128] = {0};
+	char temp[SIZ] = {0};
+	char buf[SIZ];
 	int key = 0;
 	START = time(NULL);
 	setlocale(LC_ALL, "");
 	signal(SIGWINCH, sig_handler);
 	signal(SIGINT, sig_handler);
 	start_ncurses();
-	pwd(&RAW, getcwd(buf, 128));
+	pwd(&RAW, getcwd(buf, SIZ));
 	if(RAW.ar_len < LINES-2)
 		MENULEN = RAW.ar_len;
 	else
@@ -52,7 +53,7 @@ int main() {
 				cadr();
 				break;
 			case 'h':
-				if(!strcasecmp(getcwd(buf, 128), "/"))
+				if(!strcasecmp(getcwd(buf, SIZ), "/"))
 					break;
 				if(RAW.ar_len > 0)
 //					atime(RAW.ar[CURS]->d_name);
@@ -65,7 +66,7 @@ int main() {
 					free(RAW.ar[i]);
 				}
 				free(RAW.ar);
-				memcpy(temp, basename(buf), 128);
+				memcpy(temp, basename(buf), SIZ);
 				dirname(buf);
 				chdir(buf);
 
@@ -90,7 +91,7 @@ int main() {
 			case 'l':
 				if(ACCESS)
 					break;
-				getcwd(buf, 128);
+				getcwd(buf, SIZ);
 //				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
 				if(buf[1] != '\0')
 					strcat(buf, "/");
@@ -130,7 +131,7 @@ int main() {
 				OFFSET = 0;
 				CURS = 0;
 				HIDDEN = (HIDDEN)? 0: 1;	
-				pwd(&RAW, getcwd(buf, 128));
+				pwd(&RAW, getcwd(buf, SIZ));
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
 						CURS = i;
@@ -155,7 +156,7 @@ int main() {
 			default:
 				break;
 		}
-//		memset(buf, 0, 128);
+//		memset(buf, 0, SIZ);
 	}
 	return 0;
 }
@@ -184,13 +185,13 @@ void cadr() {
 
 	struct dirent *entry_prev;
 	DIR *dir;
-	char buf[128] = {0};
-	char currentdir[128] = {0};
-	getcwd(currentdir, 128);
-	getcwd(buf, 128);
+	char buf[SIZ] = {0};
+	char currentdir[SIZ] = {0};
+	getcwd(currentdir, SIZ);
+	getcwd(buf, SIZ);
 	char *prev_dir;
 	dirname(buf);
-	char str_line[128] = {0};
+	char str_line[SIZ] = {0};
 	if(!strcasecmp(currentdir, "/")) {
 		memcpy(str_line, "/", 1);
 		mvwprintw(Prev, 0, 1, format_side, str_line);
@@ -205,7 +206,7 @@ void cadr() {
 				i--;
 				continue;
 			}
-			memset(str_line, 0, 128);
+			memset(str_line, 0, SIZ);
 			int one;
 			memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &one));
 			mvwprintw(Prev, i, 1, format_side, str_line);
@@ -226,7 +227,7 @@ void cadr() {
 		if(i+OFFSET == CURS)
 			wattron(Raw, A_REVERSE);
 		temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
-		memset(str_line, 0, 128);
+		memset(str_line, 0, SIZ);
 		memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
 
 		memset(format_raw, 0, 7);
@@ -249,14 +250,14 @@ void cadr() {
 					i--;
 					continue;
 				}
-				memset(str_line, 0, 128);
+				memset(str_line, 0, SIZ);
 				int two;
 				memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
 				mvwprintw(Next, i, 1, format_side, str_line);
 			}
 			closedir(dir);
 			if(!i) {
-				memset(str_line, 0, 128);
+				memset(str_line, 0, SIZ);
 				int three;
 				memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
 				wattron(Next, COLOR_PAIR(3));
@@ -265,7 +266,7 @@ void cadr() {
 			}
 		} else {
 			ACCESS = 1;
-			memset(str_line, 0, 128);
+			memset(str_line, 0, SIZ);
 			int four;
 			memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
 			wattron(Next, COLOR_PAIR(3));
@@ -325,6 +326,7 @@ static void sig_handler(int signo) {
 		cadr();
 	}
 	else if(signo == SIGINT) {
+END_PROG:
 		delwin(Prev);
 		delwin(Raw);
 		delwin(Next);
@@ -397,8 +399,8 @@ int pwd(struct col *raw, char *path) {
 //void pwd_prev(void) {
 //	struct dirent *entry_prev;
 //	int i;
-//	char buf[128] = {0};
-//	getcwd(buf, 128);
+//	char buf[SIZ] = {0};
+//	getcwd(buf, SIZ);
 //	DIR *prev_col = opendir(dirname(buf));
 //	for(i = 0; readdir(prev_col) != NULL; i++) {
 //		PREV_LEN++;

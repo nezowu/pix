@@ -1,13 +1,14 @@
 #include <string.h>
 #include <stdint.h>
 #define HASHSIZE 255
+#define SIZ 256
 static size_t hashlen;
 
 typedef struct nm {
 	uint32_t hash;
-	char name[128];
+	char name[SIZ];
 	size_t len;
-} Nm[256];
+} Nm[SIZ];
 
 static Nm Hash;
 
@@ -33,7 +34,7 @@ char * searchHash(char *path, char * name) {
 	for(i = 0; i < hashlen; i++) {
 		if(Hash[i].hash == hash) {
 			if(len) {
-				memset(Hash[i].name, 0, 128);
+				memset(Hash[i].name, 0, SIZ);
 				memcpy(Hash[i].name, name, len);
 			}
 			memcpy(&tmp, &Hash[i], sizeof(struct nm));
