@@ -1,5 +1,5 @@
 .PHONY : clean, install, uninstall
-CFLAGS= -Wall -Wextra -O2
+CFLAGS= -Wall -Wextra -O0 -g
 LDFLAGS= -lncursesw
 P=rain
 $(P): $(P).o wch.o hash.o

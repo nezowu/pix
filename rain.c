@@ -1,4 +1,4 @@
-// консольный файловый пейджер rain.c wch.c my.h
+// консольный файловый пейджер rain.c wch.c hash.c my.h
 #include "my.h"
 #define SIZ 256
 
@@ -62,7 +62,7 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 
-				for(int i = 0; i < RAW.ar_len; i++) {
+				for(int i = 0; i < RAW.len; i++) {
 					free(RAW.ar[i]);
 				}
 				free(RAW.ar);
@@ -102,12 +102,11 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 
-				for(int i = 0; i < RAW.ar_len; i++) {
+				for(int i = 0; i < RAW.len; i++) {
 					free(RAW.ar[i]);
 				}
 				free(RAW.ar);
 
-//				CURS = pwd(&RAW, buf);
 				pwd(&RAW, buf);
 				if((tmp = searchHash(buf, "")) != NULL) {
 					for(int i = 0; i < RAW.ar_len; i++) {
@@ -342,7 +341,7 @@ int pwd(struct col *raw, char *path) {
 	time_t t_raw = START;
 	struct dirent **entry;
 	struct stat status;
-	int count_dir = 0, count_file = 0, count_hid = 0, ind = 0, count_hiddir = 0;
+	int count_dir = 0, count_file = 0, count_hid = 0, count_hiddir = 0;
 	ar_len = scandir(path, &entry, 0, alphasort);
 	raw->ar = (struct dirent **)calloc(ar_len, sizeof(struct dirent *));
 	for(i = 0; i != ar_len; i++) {
@@ -382,7 +381,9 @@ int pwd(struct col *raw, char *path) {
 //		}
 //	}
 	raw->ar_len = count_dir;
-	return ind;
+	raw->len = ar_len;
+	//return ind;
+	return EXIT_SUCCESS;
 }
 
 //void atime(char *path) {
