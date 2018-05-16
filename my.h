@@ -28,6 +28,7 @@ WINDOW *Prev, *Raw, *Next;
 typedef struct col {
 	struct dirent **ar;
 	int ar_len;
+	int len;
 } Col;
 
 Col PREV, RAW, NEXT;
