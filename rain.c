@@ -174,11 +174,11 @@ void cadr() {
 	sprintf(format_side, "%%-%ds", C4-2); //3
 //	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
-	wclear(Prev);
-	wclear(Raw);
-	wclear(Next);
+//	wclear(Prev);
+//	wclear(Raw);
+//	wclear(Next);
 //	clear();
-	
+
 //	box(Prev, 0, 0);
 //	box(Raw, 0, 0);
 //	box(Next, 0, 0);
@@ -274,7 +274,7 @@ void cadr() {
 			wattroff(Next, COLOR_PAIR(3));
 		}
 	}
-
+	clear();
 	refresh();
 	wrefresh(Prev);
 	wrefresh(Raw);
