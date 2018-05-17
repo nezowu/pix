@@ -193,7 +193,7 @@ void cadr() {
 	dirname(buf);
 	char str_line[SIZ] = {0};
 	if(!strcasecmp(currentdir, "/")) {
-		memcpy(str_line, "/", 1);
+		memcpy(str_line, "/", 2);
 		mvwprintw(Prev, 0, 1, format_side, str_line);
 	} else {
 		dir = opendir(buf);
@@ -345,7 +345,7 @@ int pwd(struct col *raw, char *path) {
 	int count_dir = 0, count_file = 0, count_hid = 0, count_hiddir = 0;
 	ar_len = scandir(path, &entry, 0, alphasort);
 	raw->ar = (struct dirent **)calloc(ar_len, sizeof(struct dirent *));
-	for(i = 0; i != ar_len; i++) {
+	for(i = 0; i < ar_len; i++) {
 		raw->ar[i] = (struct dirent *)calloc(1, sizeof(struct dirent));
 		if(entry[i]->d_type == DT_DIR) {
 			count_dir++;
@@ -358,11 +358,10 @@ int pwd(struct col *raw, char *path) {
 		count_dir = count_dir - count_hiddir;
 	else
 		count_dir -= 2;
-	for(i = 2; i != ar_len; i++) {
+	for(i = 2; i < ar_len; i++) {
 		if(entry[i]->d_type == DT_DIR) {
-			if(flag && entry[i]->d_name[0] == '.') {
+			if(flag && entry[i]->d_name[0] == '.')
 				continue;
-			}
 			memcpy((void *)raw->ar[count_file], (void *)entry[i], sizeof(struct dirent));
 			count_file++;
 		} else {
@@ -371,8 +370,9 @@ int pwd(struct col *raw, char *path) {
 			memcpy((void *)raw->ar[count_dir], (void *)entry[i], sizeof(struct dirent));
 			count_dir++;
 		}
-		free(entry[i]);
 	}
+	for(i = 0; i < ar_len; i++)
+		free(entry[i]);
 	free(entry);
 //	for(i = 0; i < count_dir; i++) { //if own == $user else
 //		lstat(raw->ar[i]->d_name, &status);
