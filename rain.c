@@ -169,8 +169,9 @@ void cadr() {
 	int i;
 	int C2 = COLS / 2 - 2;
 	int C4 = COLS / 4 - 2;
-	char format_side[7], format_raw[7];
-	sprintf(format_side, "%%-%ds", C4-2);
+	char format_side[7], format_raw[7]; //1
+	memset(format_side, 0, 7); //2
+	sprintf(format_side, "%%-%ds", C4-2); //3
 //	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
 	wclear(Prev);
@@ -229,8 +230,8 @@ void cadr() {
 		memset(str_line, 0, SIZ);
 		memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
 
-		memset(format_raw, 0, 7);
-		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
+		memset(format_raw, 0, 7); //4
+		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format); //5
 
      		mvwprintw(Raw, i, 1, format_raw, str_line);
 		wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
