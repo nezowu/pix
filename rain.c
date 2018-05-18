@@ -62,7 +62,7 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 
-				for(int i = 0; i < RAW.len; i++) {
+				for(int i = 0; i < RAW.ar_len; i++) {
 					free(RAW.ar[i]);
 				}
 				free(RAW.ar);
@@ -102,7 +102,7 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 
-				for(int i = 0; i < RAW.len; i++) {
+				for(int i = 0; i < RAW.ar_len; i++) {
 					free(RAW.ar[i]);
 				}
 				free(RAW.ar);
@@ -169,9 +169,9 @@ void cadr() {
 	int i;
 	int C2 = COLS / 2 - 2;
 	int C4 = COLS / 4 - 2;
-	char format_side[7], format_raw[7]; //1
-	memset(format_side, 0, 7); //2
-	sprintf(format_side, "%%-%ds", C4-2); //3
+	char format_side[7], format_raw[7];
+	memset(format_side, 0, 7);
+	sprintf(format_side, "%%-%ds", C4-2);
 //	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
 //	wclear(Prev);
@@ -231,7 +231,7 @@ void cadr() {
 		memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
 
 		memset(format_raw, 0, 7); //4
-		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format); //5
+		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
 
      		mvwprintw(Raw, i, 1, format_raw, str_line);
 		wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
@@ -264,7 +264,8 @@ void cadr() {
 				mvwprintw(Next, 0, 1, format_side, str_line);
 				wattroff(Next, COLOR_PAIR(3));
 			}
-		} else {
+		}
+		else {
 			ACCESS = 1;
 			memset(str_line, 0, SIZ);
 			int four;
@@ -337,16 +338,14 @@ END_PROG:
 }
 
 int pwd(struct col *raw, char *path) {
-	int i, ar_len;
+	int i, j, ar_len;
 	int flag = HIDDEN;
 	time_t t_raw = START;
 	struct dirent **entry;
 	struct stat status;
 	int count_dir = 0, count_file = 0, count_hid = 0, count_hiddir = 0;
 	ar_len = scandir(path, &entry, 0, alphasort);
-	raw->ar = (struct dirent **)calloc(ar_len, sizeof(struct dirent *));
-	for(i = 0; i < ar_len; i++) {
-		raw->ar[i] = (struct dirent *)calloc(1, sizeof(struct dirent));
+	for(i = 2; i < ar_len; i++) { //считаем директории и скрытые директории
 		if(entry[i]->d_type == DT_DIR) {
 			count_dir++;
 			if(entry[i]->d_name[0] == '.')
@@ -355,18 +354,19 @@ int pwd(struct col *raw, char *path) {
 	}
 
 	if(flag)
-		count_dir = count_dir - count_hiddir;
-	else
-		count_dir -= 2;
+		count_dir = count_dir - count_hiddir; //считаем не скрытые директории
+	raw->ar = (struct dirent **)malloc(ar_len * sizeof(struct dirent *));
 	for(i = 2; i < ar_len; i++) {
 		if(entry[i]->d_type == DT_DIR) {
 			if(flag && entry[i]->d_name[0] == '.')
 				continue;
+			raw->ar[count_file] = (struct dirent *)malloc(sizeof(struct dirent));
 			memcpy((void *)raw->ar[count_file], (void *)entry[i], sizeof(struct dirent));
 			count_file++;
 		} else {
 			if(flag && entry[i]->d_name[0] == '.')
 				continue;
+			raw->ar[count_dir] = (struct dirent *)malloc(sizeof(struct dirent));
 			memcpy((void *)raw->ar[count_dir], (void *)entry[i], sizeof(struct dirent));
 			count_dir++;
 		}
@@ -382,8 +382,6 @@ int pwd(struct col *raw, char *path) {
 //		}
 //	}
 	raw->ar_len = count_dir;
-	raw->len = ar_len;
-	//return ind;
 	return EXIT_SUCCESS;
 }
 
