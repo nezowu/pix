@@ -3,6 +3,7 @@
 #define SIZ 256
 
 int main() {
+	struct dirent **ENTRY;
 	CURS = 0;
 	OFFSET = 0;
 	HIDDEN = 1;
@@ -15,14 +16,14 @@ int main() {
 	signal(SIGWINCH, sig_handler);
 	signal(SIGINT, sig_handler);
 	start_ncurses();
-	pwd(&RAW, getcwd(buf, SIZ));
+	ENTRY = pwd(&RAW, getcwd(buf, SIZ));
 	if(RAW.ar_len < LINES-2)
 		MENULEN = RAW.ar_len;
 	else
 		MENULEN = LINES-2;
 	cadr();
 	initHash();
-	while(key = getch()) {
+	while((key = getch()) != ERR) {
 		switch(key) {
 			case 'j':
 				if (CURS < RAW.ar_len - 1) {
@@ -62,15 +63,16 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 
-				for(int i = 0; i < RAW.ar_len; i++) {
-					free(RAW.ar[i]);
+				for(int i = 0; i < RAW.len; i++) {
+					free(ENTRY[i]);
 				}
+				free(ENTRY);
 				free(RAW.ar);
 				memcpy(temp, basename(buf), SIZ);
 				dirname(buf);
 				chdir(buf);
 
-				pwd(&RAW, buf);
+				ENTRY = pwd(&RAW, buf);
 
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(temp, RAW.ar[i]->d_name)) {
@@ -102,12 +104,13 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 
-				for(int i = 0; i < RAW.ar_len; i++) {
-					free(RAW.ar[i]);
+				for(int i = 0; i < RAW.len; i++) {
+					free(ENTRY[i]);
 				}
+				free(ENTRY);
 				free(RAW.ar);
 
-				pwd(&RAW, buf);
+				ENTRY = pwd(&RAW, buf);
 				if((tmp = searchHash(buf, "")) != NULL) {
 					for(int i = 0; i < RAW.ar_len; i++) {
 						if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
@@ -130,7 +133,14 @@ int main() {
 				OFFSET = 0;
 				CURS = 0;
 				HIDDEN = (HIDDEN)? 0: 1;	
-				pwd(&RAW, getcwd(buf, SIZ));
+
+				for(int i = 0; i < RAW.len; i++) {
+					free(ENTRY[i]);
+				}
+				free(ENTRY);
+				free(RAW.ar);
+
+				ENTRY = pwd(&RAW, getcwd(buf, SIZ));
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
 						CURS = i;
@@ -189,7 +199,7 @@ void cadr() {
 	char currentdir[SIZ] = {0};
 	getcwd(currentdir, SIZ);
 	getcwd(buf, SIZ);
-	char *prev_dir;
+//	char *prev_dir;
 	dirname(buf);
 	char str_line[SIZ] = {0};
 	if(!strcasecmp(currentdir, "/")) {
@@ -300,9 +310,9 @@ void start_ncurses(void) {
 	Next = newwin(Y, X, 1, COLS/2+X);
 }
 
-static void sig_handler(int signo) {
+void sig_handler(int signo) {
 	if(signo == SIGWINCH) {
-		int tmp;
+//		int tmp;
 		endwin();
 		refresh();
 		wclear(Prev);
@@ -327,7 +337,7 @@ static void sig_handler(int signo) {
 		cadr();
 	}
 	else if(signo == SIGINT) {
-END_PROG:
+//END_PROG:
 		delwin(Prev);
 		delwin(Raw);
 		delwin(Next);
@@ -336,55 +346,6 @@ END_PROG:
 			exit(1);
 	}
 }
-
-int pwd(struct col *raw, char *path) {
-	int i, j, ar_len;
-	int flag = HIDDEN;
-	time_t t_raw = START;
-	struct dirent **entry;
-	struct stat status;
-	int count_dir = 0, count_file = 0, count_hid = 0, count_hiddir = 0;
-	ar_len = scandir(path, &entry, 0, alphasort);
-	for(i = 2; i < ar_len; i++) { //считаем директории и скрытые директории
-		if(entry[i]->d_type == DT_DIR) {
-			count_dir++;
-			if(entry[i]->d_name[0] == '.')
-				count_hiddir++;
-		}
-	}
-
-	if(flag)
-		count_dir = count_dir - count_hiddir; //считаем не скрытые директории
-	raw->ar = (struct dirent **)malloc(ar_len * sizeof(struct dirent *));
-	for(i = 2; i < ar_len; i++) {
-		if(entry[i]->d_type == DT_DIR) {
-			if(flag && entry[i]->d_name[0] == '.')
-				continue;
-			raw->ar[count_file] = (struct dirent *)malloc(sizeof(struct dirent));
-			memcpy((void *)raw->ar[count_file], (void *)entry[i], sizeof(struct dirent));
-			count_file++;
-		} else {
-			if(flag && entry[i]->d_name[0] == '.')
-				continue;
-			raw->ar[count_dir] = (struct dirent *)malloc(sizeof(struct dirent));
-			memcpy((void *)raw->ar[count_dir], (void *)entry[i], sizeof(struct dirent));
-			count_dir++;
-		}
-	}
-	for(i = 0; i < ar_len; i++)
-		free(entry[i]);
-	free(entry);
-//	for(i = 0; i < count_dir; i++) { //if own == $user else
-//		lstat(raw->ar[i]->d_name, &status);
-//		if(status.st_atime > t_raw) {
-//			ind = i;
-//			t_raw = status.st_atime;
-//		}
-//	}
-	raw->ar_len = count_dir;
-	return EXIT_SUCCESS;
-}
-
 //void atime(char *path) {
 //	struct stat status;
 //	struct utimbuf buf;

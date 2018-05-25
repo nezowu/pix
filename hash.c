@@ -27,7 +27,7 @@ uint32_t getHash(char * key){
 }
 
 char * searchHash(char *path, char * name) {
-	int i;
+	size_t i;
 	size_t len = strlen(name);
 	Nm tmp;
 	uint32_t hash = getHash(path);
