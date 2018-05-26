@@ -15,7 +15,7 @@ int charwidth(char *s, int *size) {
 	return 0;
 }
 
-int bytesInPos(char *s, int pos, int *add_format) { //задача нати размер в байтах по позиции и корректно обрезать
+size_t bytesInPos(char *s, int pos, int *add_format) { //задача нати размер в байтах по позиции и корректно обрезать
 	int post = pos;
 	int size;
 	int count = 0;

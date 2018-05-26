@@ -10,34 +10,24 @@
 #include <libgen.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-//#include <dirent.h>
-#include <time.h>
-#include <utime.h>
 #include <errno.h>
 #include <stdint.h>
 #define ERROR() {perror(NULL); goto END_PROG;} //нужно вести лог
 #define END() goto END_PROG;
 
-time_t START; //проверить
 int CURS;
 int OFFSET;
 int MENULEN;
 int ACCESS;
-//int HIDDEN;
 WINDOW *Prev, *Raw, *Next;
-
-//typedef struct col {
-//	struct dirent **ar;
-//	int ar_len;
-//} Col;
-
 Col PREV, RAW, NEXT;
-int bytesInPos(char *, int, int *);
+size_t bytesInPos(char *, int, int *);
 void cadr();
 void sig_handler(int);
 void start_ncurses(void);
-struct dirent ** pwd(struct col *, char *);
+struct dirent ** pwd(struct col *, char *, bool);
 void atime(char *);
 void initHash(void);
 uint32_t getHash(char *);
 char * searchHash(char *, char *);
+void reset(struct dirent **);

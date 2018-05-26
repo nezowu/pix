@@ -2,3 +2,8 @@
 ..*~
 *~
 .*.swp
+go/
+libgo/
+univertaz/
+test/
+utf/

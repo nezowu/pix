@@ -1,22 +1,21 @@
-// консольный файловый пейджер rain.c wch.c hash.c my.h
+// консольный файловый пейджер rain.c wch.c hash.c ldir.c dir.h my.h
 #include "my.h"
 #define SIZ 256
 
 int main() {
-	struct dirent **ENTRY;
+	struct dirent **entry;
 	CURS = 0;
 	OFFSET = 0;
-	HIDDEN = 1;
+	bool flag = true;
 	char *tmp;
 	char temp[SIZ] = {0};
 	char buf[SIZ];
 	int key = 0;
-	START = time(NULL);
 	setlocale(LC_ALL, "");
 	signal(SIGWINCH, sig_handler);
 	signal(SIGINT, sig_handler);
 	start_ncurses();
-	ENTRY = pwd(&RAW, getcwd(buf, SIZ));
+	entry = pwd(&RAW, getcwd(buf, SIZ), flag);
 	if(RAW.ar_len < LINES-2)
 		MENULEN = RAW.ar_len;
 	else
@@ -26,53 +25,54 @@ int main() {
 	while((key = getch()) != ERR) {
 		switch(key) {
 			case 'j':
-				if (CURS < RAW.ar_len - 1) {
-					CURS++;
-					if (CURS > OFFSET + MENULEN - 1)
+				if(RAW.ar_len > 1) {
+					if (CURS < RAW.ar_len - 1) {
+						CURS++;
+						if (CURS > OFFSET + MENULEN - 1)
 							OFFSET++;
-					cadr();
+						cadr();
+					}
 				}
 				break;
 			case 'k':
-				if (CURS) {
-					CURS--;
-					if (CURS < OFFSET)
+				if(RAW.ar_len > 1) {
+					if (CURS) {
+						CURS--;
+						if (CURS < OFFSET)
 							OFFSET--;
-					cadr();
+						cadr();
+					}
 				}
 				break;
 			case 'G':
-				CURS = RAW.ar_len-1;
-				OFFSET = 0;
-				if(CURS > OFFSET + MENULEN-1)
-					OFFSET = CURS - MENULEN+1;
-				cadr();
+				if(RAW.ar_len > 1) {
+					CURS = RAW.ar_len-1;
+					OFFSET = 0;
+					if(CURS > OFFSET + MENULEN-1)
+						OFFSET = CURS - MENULEN+1;
+					cadr();
+				}
 				break;
 			case 'g':
-				CURS = 0;
-				OFFSET = 0;
-				cadr();
+				if(RAW.ar_len > 1) {
+					CURS = 0;
+					OFFSET = 0;
+					cadr();
+				}
 				break;
 			case 'h':
 				if(!strcasecmp(getcwd(buf, SIZ), "/"))
 					break;
 				if(RAW.ar_len > 0)
-//					atime(RAW.ar[CURS]->d_name);
 					searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем базу
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
-
-				for(int i = 0; i < RAW.len; i++) {
-					free(ENTRY[i]);
-				}
-				free(ENTRY);
-				free(RAW.ar);
 				memcpy(temp, basename(buf), SIZ);
 				dirname(buf);
 				chdir(buf);
-
-				ENTRY = pwd(&RAW, buf);
+				reset(entry);
+				entry = pwd(&RAW, buf, flag);
 
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(temp, RAW.ar[i]->d_name)) {
@@ -91,69 +91,62 @@ int main() {
 				cadr();
 				break;
 			case 'l':
-				if(ACCESS)
-					break;
-				getcwd(buf, SIZ);
-//				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
-				if(buf[1] != '\0')
-					strcat(buf, "/");
-				strcat(buf, RAW.ar[CURS]->d_name);
-				chdir(buf);
+				if(RAW.ar_len > 0) {
+					if(ACCESS)
+						break;
+					getcwd(buf, SIZ);
+					//				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
+					if(buf[1] != '\0')
+						strcat(buf, "/");
+					strcat(buf, RAW.ar[CURS]->d_name);
+					chdir(buf);
 
-				CURS = 0;
-				OFFSET = 0;
-				MENULEN = 0;
+					CURS = 0;
+					OFFSET = 0;
+					MENULEN = 0;
+					reset(entry);
+					entry = pwd(&RAW, buf, flag);
+					if((tmp = searchHash(buf, "")) != NULL) {
+						for(int i = 0; i < RAW.ar_len; i++) {
+							if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
+								CURS = i;
+								break;
+							}
+						}
+					}
 
-				for(int i = 0; i < RAW.len; i++) {
-					free(ENTRY[i]);
+					if(RAW.ar_len < LINES-2)
+						MENULEN = RAW.ar_len;
+					else
+						MENULEN = LINES-2;
+					if(CURS > OFFSET + MENULEN-1)
+						OFFSET = CURS - MENULEN+1;
+					cadr();
 				}
-				free(ENTRY);
-				free(RAW.ar);
-
-				ENTRY = pwd(&RAW, buf);
-				if((tmp = searchHash(buf, "")) != NULL) {
+				break;
+			case 'a':
+				flag = (flag)? false: true;	
+				if(RAW.ar_len > 0) {
+					tmp = RAW.ar[CURS]->d_name;
+					OFFSET = 0;
+					CURS = 0;
+					//				flag = (flag)? false: true;	
+					reset(entry);
+					entry = pwd(&RAW, getcwd(buf, SIZ), flag);
 					for(int i = 0; i < RAW.ar_len; i++) {
 						if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
 							CURS = i;
 							break;
 						}
 					}
+					if(RAW.ar_len < LINES-2)
+						MENULEN = RAW.ar_len;
+					else
+						MENULEN = LINES-2;
+					if(CURS > OFFSET + MENULEN-1)
+						OFFSET = CURS - MENULEN+1;
+					cadr();
 				}
-
-				if(RAW.ar_len < LINES-2)
-					MENULEN = RAW.ar_len;
-				else
-					MENULEN = LINES-2;
-				if(CURS > OFFSET + MENULEN-1)
-					OFFSET = CURS - MENULEN+1;
-				cadr();
-				break;
-			case 'a':
-				tmp = RAW.ar[CURS]->d_name;
-				OFFSET = 0;
-				CURS = 0;
-				HIDDEN = (HIDDEN)? 0: 1;	
-
-				for(int i = 0; i < RAW.len; i++) {
-					free(ENTRY[i]);
-				}
-				free(ENTRY);
-				free(RAW.ar);
-
-				ENTRY = pwd(&RAW, getcwd(buf, SIZ));
-				for(int i = 0; i < RAW.ar_len; i++) {
-					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
-						CURS = i;
-						break;
-					}
-				}
-				if(RAW.ar_len < LINES-2)
-					MENULEN = RAW.ar_len;
-				else
-					MENULEN = LINES-2;
-				if(CURS > OFFSET + MENULEN-1)
-					OFFSET = CURS - MENULEN+1;
-				cadr();
 				break;
 			case 'q':
 				delwin(Prev);
@@ -165,7 +158,6 @@ int main() {
 			default:
 				break;
 		}
-//		memset(buf, 0, SIZ);
 	}
 	return 0;
 }
@@ -174,13 +166,13 @@ void cadr() {
 	ACCESS = 1;
 	struct stat sb;
 
-	int temp, add_format;
+	int add_format;
+	size_t temp;
 
 	int i;
 	int C2 = COLS / 2 - 2;
 	int C4 = COLS / 4 - 2;
-	char format_side[7], format_raw[7];
-	memset(format_side, 0, 7);
+	char format_raw[7], format_side[7] = {0};
 	sprintf(format_side, "%%-%ds", C4-2);
 //	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
@@ -224,66 +216,79 @@ void cadr() {
 		closedir(dir);
 	}
 
-	for(i = 0; i < MENULEN; i++) {
-		if(RAW.ar[i+OFFSET]->d_type == DT_DIR)
-			wattron(Raw, A_BOLD | COLOR_PAIR(5));
-		if(RAW.ar[i+OFFSET]->d_type == DT_LNK)
-			wattron(Raw, COLOR_PAIR(2));
-		if(RAW.ar[i+OFFSET]->d_type == DT_REG) {
-			lstat(RAW.ar[i+OFFSET]->d_name, &sb);
-			if(sb.st_mode & S_IXOTH)
-				wattron(Raw, COLOR_PAIR(1));
-		}
-		if(i+OFFSET == CURS)
-			wattron(Raw, A_REVERSE);
-		temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
-		memset(str_line, 0, SIZ);
-		memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
-
-		memset(format_raw, 0, 7); //4
-		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
-
-     		mvwprintw(Raw, i, 1, format_raw, str_line);
-		wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
-	}
-	/*выводим на экран третий столбец*/
-	if(RAW.ar[CURS]->d_type == DT_DIR ) {
-		dir = opendir(RAW.ar[CURS]->d_name);
-		if(dir) {
-			ACCESS = 0;
-			for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
-				if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
-					i--;
-					continue;
-				}
-				else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
-					i--;
-					continue;
-				}
-				memset(str_line, 0, SIZ);
-				int two;
-				memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
-				mvwprintw(Next, i, 1, format_side, str_line);
+	if(RAW.ar_len > 0) {
+		for(i = 0; i < MENULEN; i++) {
+			if(RAW.ar[i+OFFSET]->d_type == DT_DIR)
+				wattron(Raw, A_BOLD | COLOR_PAIR(5));
+			if(RAW.ar[i+OFFSET]->d_type == DT_LNK)
+				wattron(Raw, COLOR_PAIR(2));
+			if(RAW.ar[i+OFFSET]->d_type == DT_REG) {
+				lstat(RAW.ar[i+OFFSET]->d_name, &sb);
+				if(sb.st_mode & S_IXOTH)
+					wattron(Raw, COLOR_PAIR(1));
 			}
-			closedir(dir);
-			if(!i) {
+			if(i+OFFSET == CURS)
+				wattron(Raw, A_REVERSE);
+			temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
+			memset(str_line, 0, SIZ);
+			memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
+
+			memset(format_raw, 0, 7); //4
+			sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
+
+			mvwprintw(Raw, i, 1, format_raw, str_line);
+			wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
+		}
+		/*выводим на экран третий столбец*/
+		if(RAW.ar[CURS]->d_type == DT_DIR ) {
+			dir = opendir(RAW.ar[CURS]->d_name);
+			if(dir) {
+				ACCESS = 0;
+				for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
+					if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
+						i--;
+						continue;
+					}
+					else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
+						i--;
+						continue;
+					}
+					memset(str_line, 0, SIZ);
+					int two;
+					memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
+					mvwprintw(Next, i, 1, format_side, str_line);
+				}
+				closedir(dir);
+				if(!i) {
+					memset(str_line, 0, SIZ);
+					int three;
+					memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
+					wattron(Next, COLOR_PAIR(3));
+					mvwprintw(Next, 0, 1, format_side, str_line);
+					wattroff(Next, COLOR_PAIR(3));
+				}
+			}
+			else {
+				ACCESS = 1;
 				memset(str_line, 0, SIZ);
-				int three;
-				memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
+				int four;
+				memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
 				wattron(Next, COLOR_PAIR(3));
 				mvwprintw(Next, 0, 1, format_side, str_line);
 				wattroff(Next, COLOR_PAIR(3));
 			}
 		}
-		else {
-			ACCESS = 1;
-			memset(str_line, 0, SIZ);
-			int four;
-			memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
-			wattron(Next, COLOR_PAIR(3));
-			mvwprintw(Next, 0, 1, format_side, str_line);
-			wattroff(Next, COLOR_PAIR(3));
-		}
+	}
+	else {
+//		memset(str_line, 0, SIZ);
+		memcpy(str_line, "Empty", 6);
+		memset(format_raw, 0, 7); //4
+
+		temp = bytesInPos(str_line, C2, &add_format);
+		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
+		wattron(Raw, COLOR_PAIR(3));
+		mvwprintw(Raw, 0, 1, format_raw, str_line);
+		wattroff(Raw, COLOR_PAIR(3));
 	}
 	clear();
 	refresh();
@@ -312,7 +317,6 @@ void start_ncurses(void) {
 
 void sig_handler(int signo) {
 	if(signo == SIGWINCH) {
-//		int tmp;
 		endwin();
 		refresh();
 		wclear(Prev);
@@ -346,24 +350,13 @@ void sig_handler(int signo) {
 			exit(1);
 	}
 }
-//void atime(char *path) {
-//	struct stat status;
-//	struct utimbuf buf;
-//	if(lstat(RAW.ar[CURS]->d_name, &status) == -1) { //if own == $user else
-//		perror("lstat:403");
-//		exit(EXIT_FAILURE);
-//	}
-//	buf.modtime = status.st_mtime;
-//	buf.actime = time(NULL);
-//	utime(RAW.ar[CURS]->d_name, &buf);
-//}
-//void pwd_prev(void) {
-//	struct dirent *entry_prev;
-//	int i;
-//	char buf[SIZ] = {0};
-//	getcwd(buf, SIZ);
-//	DIR *prev_col = opendir(dirname(buf));
-//	for(i = 0; readdir(prev_col) != NULL; i++) {
-//		PREV_LEN++;
-//	}
-//	rewinddir(prev_col);
+
+void reset(struct dirent ** entry) {
+	for(int i = 0; i < RAW.len; i++) {
+		free(entry[i]);
+	}
+	free(entry);
+	if(RAW.ar_len)
+		free(RAW.ar);
+}
+
