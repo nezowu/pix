@@ -10,10 +10,10 @@ typedef struct nm {
 	size_t len;
 } Nm[SIZ];
 
-static Nm Hash;
+Nm Hash = {0};
 
 void initHash(void) {
-	memset(Hash, 0, sizeof(struct nm) * HASHSIZE);
+//	memset(Hash, 0, sizeof(struct nm) * HASHSIZE);
 	hashlen = 0;
 }
 
@@ -29,7 +29,7 @@ uint32_t getHash(char * key){
 char * searchHash(char *path, char * name) {
 	size_t i;
 	size_t len = strlen(name);
-	Nm tmp;
+	struct nm tmp;
 	uint32_t hash = getHash(path);
 	for(i = 0; i < hashlen; i++) {
 		if(Hash[i].hash == hash) {

@@ -69,8 +69,7 @@ int main() {
 				OFFSET = 0;
 				MENULEN = 0;
 				memcpy(temp, basename(buf), SIZ);
-				dirname(buf);
-				chdir(buf);
+				chdir(dirname(buf));
 				reset(entry);
 				entry = pwd(&RAW, buf, flag);
 
@@ -130,7 +129,6 @@ int main() {
 					tmp = RAW.ar[CURS]->d_name;
 					OFFSET = 0;
 					CURS = 0;
-					//				flag = (flag)? false: true;	
 					reset(entry);
 					entry = pwd(&RAW, getcwd(buf, SIZ), flag);
 					for(int i = 0; i < RAW.ar_len; i++) {
@@ -190,15 +188,14 @@ void cadr() {
 	char buf[SIZ] = {0};
 	char currentdir[SIZ] = {0};
 	getcwd(currentdir, SIZ);
-	getcwd(buf, SIZ);
 //	char *prev_dir;
-	dirname(buf);
 	char str_line[SIZ] = {0};
 	if(!strcasecmp(currentdir, "/")) {
 		memcpy(str_line, "/", 2);
 		mvwprintw(Prev, 0, 1, format_side, str_line);
 	} else {
-		dir = opendir(buf);
+		getcwd(buf, SIZ);
+		dir = opendir(dirname(buf));
 		for(i = 0;(entry_prev = readdir(dir)) != NULL; i++) {
 			if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
 				i--;
@@ -239,8 +236,7 @@ void cadr() {
 			mvwprintw(Raw, i, 1, format_raw, str_line);
 			wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
 		}
-		/*выводим на экран третий столбец*/
-		if(RAW.ar[CURS]->d_type == DT_DIR ) {
+		if(RAW.ar[CURS]->d_type == DT_DIR ) { //выводим на экран третий столбец
 			dir = opendir(RAW.ar[CURS]->d_name);
 			if(dir) {
 				ACCESS = 0;
@@ -280,12 +276,10 @@ void cadr() {
 		}
 	}
 	else {
-//		memset(str_line, 0, SIZ);
-		memcpy(str_line, "Empty", 6);
+		memcpy(str_line, "Empty", COLS/2-2);
 		memset(format_raw, 0, 7); //4
-
-		temp = bytesInPos(str_line, C2, &add_format);
-		sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
+//		temp = bytesInPos(str_line, C2, &add_format);
+		sprintf(format_raw, "%%-%ds", COLS/2-2); //+add_format
 		wattron(Raw, COLOR_PAIR(3));
 		mvwprintw(Raw, 0, 1, format_raw, str_line);
 		wattroff(Raw, COLOR_PAIR(3));
@@ -356,7 +350,6 @@ void reset(struct dirent ** entry) {
 		free(entry[i]);
 	}
 	free(entry);
-	if(RAW.ar_len)
-		free(RAW.ar);
+	free(RAW.ar);
 }
 
