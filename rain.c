@@ -8,7 +8,8 @@ int main() {
 	OFFSET = 0;
 	bool flag = true;
 	char *tmp;
-	char temp[SIZ] = {0};
+//	char temp[SIZ] = {0};
+	char *temp;
 	char buf[SIZ];
 	int key = 0;
 	setlocale(LC_ALL, "");
@@ -20,8 +21,9 @@ int main() {
 		MENULEN = RAW.ar_len;
 	else
 		MENULEN = LINES-2;
+	cadr_p();
 	cadr();
-	initHash();
+//	initHash();
 	while((key = getch()) != ERR) {
 		switch(key) {
 			case 'j':
@@ -68,7 +70,7 @@ int main() {
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
-				memcpy(temp, basename(buf), SIZ);
+				temp = basename(buf);
 				chdir(dirname(buf));
 				reset(entry);
 				entry = pwd(&RAW, buf, flag);
@@ -87,6 +89,7 @@ int main() {
 				if(CURS > OFFSET + MENULEN-1)
 					OFFSET = CURS - MENULEN+1;
 
+				cadr_p();
 				cadr();
 				break;
 			case 'l':
@@ -120,31 +123,31 @@ int main() {
 						MENULEN = LINES-2;
 					if(CURS > OFFSET + MENULEN-1)
 						OFFSET = CURS - MENULEN+1;
+					cadr_p();
 					cadr();
 				}
 				break;
 			case 'a':
 				flag = (flag)? false: true;	
-				if(RAW.ar_len > 0) {
-					tmp = RAW.ar[CURS]->d_name;
-					OFFSET = 0;
-					CURS = 0;
-					reset(entry);
-					entry = pwd(&RAW, getcwd(buf, SIZ), flag);
-					for(int i = 0; i < RAW.ar_len; i++) {
-						if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
-							CURS = i;
-							break;
-						}
+				tmp = RAW.ar[CURS]->d_name;
+				OFFSET = 0;
+				CURS = 0;
+				reset(entry);
+				entry = pwd(&RAW, getcwd(buf, SIZ), flag);
+				for(int i = 0; i < RAW.ar_len; i++) {
+					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
+						CURS = i;
+						break;
 					}
-					if(RAW.ar_len < LINES-2)
-						MENULEN = RAW.ar_len;
-					else
-						MENULEN = LINES-2;
-					if(CURS > OFFSET + MENULEN-1)
-						OFFSET = CURS - MENULEN+1;
-					cadr();
 				}
+				if(RAW.ar_len < LINES-2)
+					MENULEN = RAW.ar_len;
+				else
+					MENULEN = LINES-2;
+				if(CURS > OFFSET + MENULEN-1)
+					OFFSET = CURS - MENULEN+1;
+				cadr_p();
+				cadr();
 				break;
 			case 'q':
 				delwin(Prev);
@@ -160,17 +163,49 @@ int main() {
 	return 0;
 }
 
+void cadr_p() {
+	int i;
+	char format_side[7];
+	int C4 = COLS / 4 - 2;
+	sprintf(format_side, "%%-%ds", C4 - 2);
+	struct dirent *entry_prev;
+	DIR *dir;
+	char *currentdir = getcwd(NULL, SIZ);
+	char *str_line;
+	wclear(Prev);
+	if(currentdir[1] == '\0') { //проверка директории на корень "/"
+		wattron(Prev, A_BOLD | COLOR_PAIR(5));
+		mvwprintw(Prev, 0, 1, format_side, currentdir);
+		wattroff(Prev, A_BOLD | COLOR_PAIR(5));
+	} else {
+		dir = opendir(dirname(currentdir)); //заменим на функцию pwd
+		for(i = 0;(entry_prev = readdir(dir)) != NULL; i++) {
+			if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
+				i--;
+				continue;
+			}
+			int one;
+			str_line = strndup(entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &one));
+			mvwprintw(Prev, i, 1, format_side, str_line);
+			free(str_line);
+		}
+		closedir(dir);
+	}
+	wrefresh(Prev);
+	free(currentdir);
+}
+
 void cadr() {
 	ACCESS = 1;
 	struct stat sb;
 
 	int add_format;
-	size_t temp;
+//	size_t temp;
 
 	int i;
 	int C2 = COLS / 2 - 2;
 	int C4 = COLS / 4 - 2;
-	char format_raw[7], format_side[7] = {0};
+	char format_raw[7], format_side[7];
 	sprintf(format_side, "%%-%ds", C4-2);
 //	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
@@ -183,37 +218,13 @@ void cadr() {
 //	box(Raw, 0, 0);
 //	box(Next, 0, 0);
 
-	struct dirent *entry_prev;
 	DIR *dir;
-	char buf[SIZ] = {0};
-	char currentdir[SIZ] = {0};
-	getcwd(currentdir, SIZ);
-//	char *prev_dir;
-	char str_line[SIZ] = {0};
-	if(!strcasecmp(currentdir, "/")) {
-		memcpy(str_line, "/", 2);
-		mvwprintw(Prev, 0, 1, format_side, str_line);
-	} else {
-		getcwd(buf, SIZ);
-		dir = opendir(dirname(buf));
-		for(i = 0;(entry_prev = readdir(dir)) != NULL; i++) {
-			if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
-				i--;
-				continue;
-			}
-			else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
-				i--;
-				continue;
-			}
-			memset(str_line, 0, SIZ);
-			int one;
-			memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &one));
-			mvwprintw(Prev, i, 1, format_side, str_line);
-		}
-		closedir(dir);
-	}
+	struct dirent *entry_prev;
+//	char str_line[SIZ] = {0};
+	char *str_line;
 
-	if(RAW.ar_len > 0) {
+	wclear(Raw);
+	if(RAW.ar_len > 0) { //главная колонка
 		for(i = 0; i < MENULEN; i++) {
 			if(RAW.ar[i+OFFSET]->d_type == DT_DIR)
 				wattron(Raw, A_BOLD | COLOR_PAIR(5));
@@ -226,16 +237,21 @@ void cadr() {
 			}
 			if(i+OFFSET == CURS)
 				wattron(Raw, A_REVERSE);
-			temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
-			memset(str_line, 0, SIZ);
-			memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
+//			temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
+//			memset(str_line, 0, SIZ);
+//			memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
+			str_line = strndup(RAW.ar[i+OFFSET]->d_name, bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format));
 
-			memset(format_raw, 0, 7); //4
+//			memset(format_raw, 0, 7); //4
 			sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
 
 			mvwprintw(Raw, i, 1, format_raw, str_line);
+//			mvwprintw(Raw, i, 1, format_raw, RAW.ar[i+OFFSET]->d_name);
 			wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
+			free(str_line);
 		}
+
+		wclear(Next);
 		if(RAW.ar[CURS]->d_type == DT_DIR ) { //выводим на экран третий столбец
 			dir = opendir(RAW.ar[CURS]->d_name);
 			if(dir) {
@@ -245,50 +261,72 @@ void cadr() {
 						i--;
 						continue;
 					}
-					else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
+					else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы флаг flag не глобальный
 						i--;
 						continue;
 					}
-					memset(str_line, 0, SIZ);
+//					memset(str_line, 0, SIZ);
 					int two;
-					memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
+//					memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
+					str_line = strndup(entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
 					mvwprintw(Next, i, 1, format_side, str_line);
+//					mvwprintw(Next, i, 1, format_side, entry_prev->d_name);
+					free(str_line);
 				}
 				closedir(dir);
 				if(!i) {
-					memset(str_line, 0, SIZ);
-					int three;
-					memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
+//					memset(str_line, 0, SIZ);
+//					int three;
+//					memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
+					if(C4 > 4)
+						str_line = strndup("Empty", 5);
+					else
+						str_line = strndup("Empty", C4);
 					wattron(Next, COLOR_PAIR(3));
-					mvwprintw(Next, 0, 1, format_side, str_line);
+//					if(C4 > 4)
+						mvwprintw(Next, 0, 1, format_side, str_line);
 					wattroff(Next, COLOR_PAIR(3));
+					free(str_line);
 				}
 			}
 			else {
 				ACCESS = 1;
-				memset(str_line, 0, SIZ);
-				int four;
-				memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
+//				memset(str_line, 0, SIZ);
+//				int four;
+//				memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
+				if(C4 > 13)
+					str_line = strndup("Not accessible", 14);
+				else
+					str_line = strndup("Not accessible", C4);
 				wattron(Next, COLOR_PAIR(3));
 				mvwprintw(Next, 0, 1, format_side, str_line);
 				wattroff(Next, COLOR_PAIR(3));
+				free(str_line);
 			}
 		}
+		wrefresh(Next);
 	}
-	else {
-		memcpy(str_line, "Empty", COLS/2-2);
-		memset(format_raw, 0, 7); //4
+	else { //wrefresh() выпадает
+//		memcpy(str_line, "Empty", COLS/2-2);
+//		memset(format_raw, 0, 7); //4
 //		temp = bytesInPos(str_line, C2, &add_format);
 		sprintf(format_raw, "%%-%ds", COLS/2-2); //+add_format
+		if(C2 > 4)
+			str_line = strndup("Empty", 5);
+		else
+			str_line = strndup("Empty", C2);
 		wattron(Raw, COLOR_PAIR(3));
 		mvwprintw(Raw, 0, 1, format_raw, str_line);
 		wattroff(Raw, COLOR_PAIR(3));
 	}
-	clear();
-	refresh();
-	wrefresh(Prev);
 	wrefresh(Raw);
-	wrefresh(Next);
+//	wclear(Raw);
+//	wrefresh(Prev);
+
+//	clear();
+//	refresh();
+//	wclear(Next);
+//	wrefresh(Prev);
 }
 
 void start_ncurses(void) {
@@ -307,22 +345,25 @@ void start_ncurses(void) {
 	Prev = newwin(Y, X, 1, 0);
 	Raw = newwin(Y, COLS/2, 1, X);
 	Next = newwin(Y, X, 1, COLS/2+X);
+	refresh();
 }
 
 void sig_handler(int signo) {
 	if(signo == SIGWINCH) {
 		endwin();
-		refresh();
-		wclear(Prev);
-		wclear(Raw);
-		wclear(Next);
 //		clear();
-//		wresize(stdscr, COLS, LINES); //
+//		initscr();
+		refresh();
+//		wclear(Prev);
+//		wclear(Raw);
+//		wclear(Next);
+		wresize(stdscr, COLS, LINES); //
 		int X = COLS/4;
 		int Y = LINES-2;
 		wresize(Prev, Y, X);
 		wresize(Raw, Y, COLS/2);
 		wresize(Next, Y, X);
+		mvwin(Prev, 1, 0);
 		mvwin(Raw, 1, X);
 		mvwin(Next, 1, COLS/2+X);
 		OFFSET = 0;
@@ -332,6 +373,8 @@ void sig_handler(int signo) {
 			MENULEN = LINES-2;
 		if(CURS > OFFSET + MENULEN-1)
 			OFFSET = CURS - MENULEN+1;
+		refresh();
+		cadr_p();
 		cadr();
 	}
 	else if(signo == SIGINT) {

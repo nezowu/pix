@@ -2,7 +2,6 @@
 #include <stdint.h>
 #define HASHSIZE 255
 #define SIZ 256
-static size_t hashlen;
 
 typedef struct nm {
 	uint32_t hash;
@@ -11,6 +10,7 @@ typedef struct nm {
 } Nm[SIZ];
 
 Nm Hash = {0};
+static size_t hashlen = 0;
 
 void initHash(void) {
 //	memset(Hash, 0, sizeof(struct nm) * HASHSIZE);
