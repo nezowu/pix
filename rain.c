@@ -3,13 +3,11 @@
 #define SIZ 256
 
 int main() {
-	struct dirent **entry;
+	struct dirent **entry, **entry_p;
 	CURS = 0;
 	OFFSET = 0;
 	bool flag = true;
-	char *tmp;
-//	char temp[SIZ] = {0};
-	char *temp;
+	char *current;
 	char buf[SIZ];
 	int key = 0;
 	setlocale(LC_ALL, "");
@@ -17,6 +15,7 @@ int main() {
 	signal(SIGINT, sig_handler);
 	start_ncurses();
 	entry = pwd(&RAW, getcwd(buf, SIZ), flag);
+	entry_p = pwd(&PREV, dirname(buf), flag);
 	if(RAW.ar_len < LINES-2)
 		MENULEN = RAW.ar_len;
 	else
@@ -63,20 +62,24 @@ int main() {
 				}
 				break;
 			case 'h':
-				if(!strcasecmp(getcwd(buf, SIZ), "/"))
+				if(!strcasecmp(getcwd(buf, SIZ), "/")) {
+					searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем базу
 					break;
+				}
 				if(RAW.ar_len > 0)
 					searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем базу
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
-				temp = basename(buf);
+				current = strdup(basename(buf));
 				chdir(dirname(buf));
 				reset(entry);
 				entry = pwd(&RAW, buf, flag);
+				reset_p(entry_p);
+				entry_p = pwd(&PREV, dirname(buf), flag);
 
 				for(int i = 0; i < RAW.ar_len; i++) {
-					if(!strcasecmp(temp, RAW.ar[i]->d_name)) {
+					if(!strcasecmp(current, RAW.ar[i]->d_name)) {
 						CURS = i;
 						break;
 					}
@@ -91,12 +94,15 @@ int main() {
 
 				cadr_p();
 				cadr();
+				free(current);
 				break;
 			case 'l':
 				if(RAW.ar_len > 0) {
 					if(ACCESS)
 						break;
 					getcwd(buf, SIZ);
+					reset_p(entry_p);
+					entry_p = pwd(&PREV, buf, flag);
 					//				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
 					if(buf[1] != '\0')
 						strcat(buf, "/");
@@ -108,9 +114,9 @@ int main() {
 					MENULEN = 0;
 					reset(entry);
 					entry = pwd(&RAW, buf, flag);
-					if((tmp = searchHash(buf, "")) != NULL) {
+					if((current = searchHash(buf, "")) != NULL) {
 						for(int i = 0; i < RAW.ar_len; i++) {
-							if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
+							if(!strcasecmp(current, RAW.ar[i]->d_name)) {
 								CURS = i;
 								break;
 							}
@@ -129,13 +135,15 @@ int main() {
 				break;
 			case 'a':
 				flag = (flag)? false: true;	
-				tmp = RAW.ar[CURS]->d_name;
+				current = strdup(RAW.ar[CURS]->d_name);
 				OFFSET = 0;
 				CURS = 0;
 				reset(entry);
 				entry = pwd(&RAW, getcwd(buf, SIZ), flag);
+				reset_p(entry_p);
+				entry_p = pwd(&PREV, dirname(buf), flag);
 				for(int i = 0; i < RAW.ar_len; i++) {
-					if(!strcasecmp(tmp, RAW.ar[i]->d_name)) {
+					if(!strcasecmp(current, RAW.ar[i]->d_name)) {
 						CURS = i;
 						break;
 					}
@@ -148,6 +156,7 @@ int main() {
 					OFFSET = CURS - MENULEN+1;
 				cadr_p();
 				cadr();
+				free(current);
 				break;
 			case 'q':
 				delwin(Prev);
@@ -164,35 +173,57 @@ int main() {
 }
 
 void cadr_p() {
-	int i;
+	struct stat sb;
+	size_t size;
+	int i, j, offset = 0;
 	char format_side[7];
 	int C4 = COLS / 4 - 2;
-	sprintf(format_side, "%%-%ds", C4 - 2);
-	struct dirent *entry_prev;
-	DIR *dir;
-	char *currentdir = getcwd(NULL, SIZ);
-	char *str_line;
+	sprintf(format_side, "%%-%ds", C4);
+	char *current = getcwd(NULL, SIZ);
+	char *curs_p;
+	char str_line[SIZ];
 	wclear(Prev);
-	if(currentdir[1] == '\0') { //проверка директории на корень "/"
-		wattron(Prev, A_BOLD | COLOR_PAIR(5));
-		mvwprintw(Prev, 0, 1, format_side, currentdir);
-		wattroff(Prev, A_BOLD | COLOR_PAIR(5));
-	} else {
-		dir = opendir(dirname(currentdir)); //заменим на функцию pwd
-		for(i = 0;(entry_prev = readdir(dir)) != NULL; i++) {
-			if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы
-				i--;
-				continue;
+	if(current[1] == '\0') { //проверка директории на корень "/"
+		wattron(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5));
+		mvwprintw(Prev, 0, 1, format_side, current);
+		wattroff(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5));
+	}
+	else {
+		curs_p = basename(current);
+		for(i = 0; i < PREV.ar_len; i++) {
+			if(!strcasecmp(PREV.ar[i]->d_name, curs_p)) {
+				if(i > LINES - 3)
+				offset = i - (LINES - 3);
+				break;
 			}
-			int one;
-			str_line = strndup(entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &one));
-			mvwprintw(Prev, i, 1, format_side, str_line);
-			free(str_line);
 		}
-		closedir(dir);
+		for(j = offset; j < PREV.ar_len; j++) {
+			int one = 0;
+			size = bytesInPos(PREV.ar[j]->d_name, C4, &one);
+			memcpy(str_line, PREV.ar[j]->d_name, size);
+			str_line[size] = '\0';
+			sprintf(format_side, "%%-%ds", C4 + one);
+			if(PREV.ar[j]->d_type == DT_DIR)
+				wattron(Prev, A_BOLD | COLOR_PAIR(5));
+			if(PREV.ar[j]->d_type == DT_LNK)
+				wattron(Prev, COLOR_PAIR(2));
+			if(PREV.ar[j]->d_type == DT_REG) {
+				lstat(RAW.ar[j]->d_name, &sb);
+				if(sb.st_mode & S_IXOTH)
+					wattron(Prev, COLOR_PAIR(1));
+			}
+
+			if(j == i) {
+				wattron(Prev, A_REVERSE);
+			}
+			mvwprintw(Prev, j-offset, 1, format_side, str_line);
+			wattroff(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
+			if(j-offset == LINES - 3)
+				break;
+		}
 	}
 	wrefresh(Prev);
-	free(currentdir);
+	free(current);
 }
 
 void cadr() {
@@ -357,13 +388,13 @@ void sig_handler(int signo) {
 //		wclear(Prev);
 //		wclear(Raw);
 //		wclear(Next);
-		wresize(stdscr, COLS, LINES); //
+//		wresize(stdscr, COLS, LINES); //
 		int X = COLS/4;
 		int Y = LINES-2;
 		wresize(Prev, Y, X);
 		wresize(Raw, Y, COLS/2);
 		wresize(Next, Y, X);
-		mvwin(Prev, 1, 0);
+//		mvwin(Prev, 1, 0);
 		mvwin(Raw, 1, X);
 		mvwin(Next, 1, COLS/2+X);
 		OFFSET = 0;
@@ -395,4 +426,10 @@ void reset(struct dirent ** entry) {
 	free(entry);
 	free(RAW.ar);
 }
-
+void reset_p(struct dirent ** entry_p) {
+	for(int i = 0; i < PREV.len; i++) {
+		free(entry_p[i]);
+	}
+	free(entry_p);
+	free(PREV.ar);
+}

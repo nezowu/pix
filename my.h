@@ -32,3 +32,4 @@ void initHash(void);
 uint32_t getHash(char *);
 char * searchHash(char *, char *);
 void reset(struct dirent **);
+void reset_p(struct dirent **);
