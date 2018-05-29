@@ -20,8 +20,8 @@ int main() {
 		MENULEN = RAW.ar_len;
 	else
 		MENULEN = LINES-2;
-	cadr_p();
 	cadr();
+	cadr_p();
 //	initHash();
 	while((key = getch()) != ERR) {
 		switch(key) {
@@ -92,8 +92,8 @@ int main() {
 				if(CURS > OFFSET + MENULEN-1)
 					OFFSET = CURS - MENULEN+1;
 
-				cadr_p();
 				cadr();
+				cadr_p();
 				free(current);
 				break;
 			case 'l':
@@ -129,8 +129,8 @@ int main() {
 						MENULEN = LINES-2;
 					if(CURS > OFFSET + MENULEN-1)
 						OFFSET = CURS - MENULEN+1;
-					cadr_p();
 					cadr();
+					cadr_p();
 				}
 				break;
 			case 'a':
@@ -140,8 +140,6 @@ int main() {
 				CURS = 0;
 				reset(entry);
 				entry = pwd(&RAW, getcwd(buf, SIZ), flag);
-				reset_p(entry_p);
-				entry_p = pwd(&PREV, dirname(buf), flag);
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(current, RAW.ar[i]->d_name)) {
 						CURS = i;
@@ -154,8 +152,12 @@ int main() {
 					MENULEN = LINES-2;
 				if(CURS > OFFSET + MENULEN-1)
 					OFFSET = CURS - MENULEN+1;
-				cadr_p();
+
+				reset_p(entry_p);
+				entry_p = pwd(&PREV, dirname(buf), flag);
+
 				cadr();
+				cadr_p();
 				free(current);
 				break;
 			case 'q':
@@ -173,57 +175,54 @@ int main() {
 }
 
 void cadr_p() {
-	struct stat sb;
+	char buf[SIZ];
+//	struct stat sb;
 	size_t size;
 	int i, j, offset = 0;
 	char format_side[7];
 	int C4 = COLS / 4 - 2;
-	sprintf(format_side, "%%-%ds", C4);
-	char *current = getcwd(NULL, SIZ);
-	char *curs_p;
-	char str_line[SIZ];
+	getcwd(buf, SIZ);
 	wclear(Prev);
-	if(current[1] == '\0') { //проверка директории на корень "/"
+	if(buf[1] == '\0') { //проверка директории на корень "/"
+		sprintf(format_side, "%%-%ds", C4);
 		wattron(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5));
-		mvwprintw(Prev, 0, 1, format_side, current);
+		mvwprintw(Prev, 0, 1, format_side, buf);
 		wattroff(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5));
 	}
 	else {
-		curs_p = basename(current);
 		for(i = 0; i < PREV.ar_len; i++) {
-			if(!strcasecmp(PREV.ar[i]->d_name, curs_p)) {
+			if(!strcasecmp(PREV.ar[i]->d_name, basename(buf))) {
 				if(i > LINES - 3)
 				offset = i - (LINES - 3);
 				break;
 			}
-		}
+		} // усли не найдено совпадений присвоить i первый индекс, фиг там!
 		for(j = offset; j < PREV.ar_len; j++) {
 			int one = 0;
 			size = bytesInPos(PREV.ar[j]->d_name, C4, &one);
-			memcpy(str_line, PREV.ar[j]->d_name, size);
-			str_line[size] = '\0';
+			memcpy(buf, PREV.ar[j]->d_name, size);
+			buf[size] = '\0';
 			sprintf(format_side, "%%-%ds", C4 + one);
 			if(PREV.ar[j]->d_type == DT_DIR)
 				wattron(Prev, A_BOLD | COLOR_PAIR(5));
-			if(PREV.ar[j]->d_type == DT_LNK)
-				wattron(Prev, COLOR_PAIR(2));
-			if(PREV.ar[j]->d_type == DT_REG) {
-				lstat(RAW.ar[j]->d_name, &sb);
-				if(sb.st_mode & S_IXOTH)
-					wattron(Prev, COLOR_PAIR(1));
-			}
-
+//			if(PREV.ar[j]->d_type == DT_LNK)
+//				wattron(Prev, COLOR_PAIR(2));
+//			if(PREV.ar[j]->d_type == DT_REG) {
+//				lstat(RAW.ar[j]->d_name, &sb);
+//				if(sb.st_mode & S_IXOTH)
+//					wattron(Prev, COLOR_PAIR(1));
+//			}
 			if(j == i) {
 				wattron(Prev, A_REVERSE);
 			}
-			mvwprintw(Prev, j-offset, 1, format_side, str_line);
-			wattroff(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
+			mvwprintw(Prev, j-offset, 1, format_side, buf);
+//			wattroff(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
+			wattroff(Prev, A_REVERSE | A_BOLD | COLOR_PAIR(5));
 			if(j-offset == LINES - 3)
 				break;
 		}
 	}
 	wrefresh(Prev);
-	free(current);
 }
 
 void cadr() {
@@ -362,6 +361,7 @@ void cadr() {
 
 void start_ncurses(void) {
 	initscr();
+	endwin(); //что это?
 	cbreak();
 	start_color();
 	init_pair(1,COLOR_GREEN,0);
@@ -405,8 +405,8 @@ void sig_handler(int signo) {
 		if(CURS > OFFSET + MENULEN-1)
 			OFFSET = CURS - MENULEN+1;
 		refresh();
-		cadr_p();
 		cadr();
+		cadr_p();
 	}
 	else if(signo == SIGINT) {
 //END_PROG:
