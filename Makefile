@@ -1,8 +1,8 @@
 .PHONY : clean, install, uninstall
 CFLAGS= -Wall -Wextra -O0 -g
 LDFLAGS= -lncursesw
-P=rain
-$(P): $(P).o wch.o hash.o ldir.o
+P=pix
+$(P): pixie.o wch.o hash.o ldir.o
 	gcc $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 wch.o: wch.c
@@ -14,7 +14,7 @@ hash.o: hash.c
 listdir.o: ldir.c dir.h
 	gcc $(CFLAGS) -c $<
 
-rain.o: rain.c my.h dir.h
+pixie.o: pixie.c my.h dir.h
 	gcc $(CFLAGS) -c $<
 	
 clean :
