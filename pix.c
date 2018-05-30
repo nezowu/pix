@@ -1,4 +1,4 @@
-// консольный файловый пейджер pixie.c wch.c hash.c ldir.c dir.h my.h
+// консольный файловый пейджер pix.c wch.c hash.c ldir.c dir.h my.h
 #include "my.h"
 #define SIZ 256
 
