@@ -1,4 +1,4 @@
-// консольный файловый пейджер rain.c wch.c hash.c ldir.c dir.h my.h
+// консольный файловый пейджер pixie.c wch.c hash.c ldir.c dir.h my.h
 #include "my.h"
 #define SIZ 256
 
@@ -351,7 +351,7 @@ void cadr() {
 
 void start_ncurses(void) {
 	initscr();
-	endwin(); //что это?
+	endwin(); //что это? не едут лыжы!
 	cbreak();
 	start_color();
 	init_pair(1,COLOR_GREEN,0);
@@ -380,7 +380,7 @@ void sig_handler(int signo) {
 		wresize(Prev, Y, X);
 		wresize(Raw, Y, COLS/2);
 		wresize(Next, Y, X);
-		mvwin(Prev, 1, 0);
+//		mvwin(Prev, 1, 0); //точка привязки не изменилась
 		mvwin(Raw, 1, X);
 		mvwin(Next, 1, COLS/2+X);
 		OFFSET = 0;
