@@ -2,11 +2,13 @@
 #include "my.h"
 #define SIZ 256
 
+bool flag; //урать из глобальной после создания 3 колонки
+
 int main() {
 	struct dirent **entry, **entry_p;
 	CURS = 0;
 	OFFSET = 0;
-	bool flag = true;
+	flag = true; //поставить тип bool - убать в локальную
 	char *current;
 	char buf[SIZ];
 	int key = 0;
@@ -227,19 +229,18 @@ void cadr_p() {
 
 void cadr() {
 	ACCESS = 1;
-	struct stat sb;
+//	struct stat sb;
 
-	int add_format;
-//	size_t temp;
-
-	int i;
+	int add_format = 0;
+	size_t temp;
+	char buf[SIZ];
+	int i, j;
 	int C2 = COLS / 2 - 2;
 	int C4 = COLS / 4 - 2;
 	char format_raw[7], format_side[7];
-	sprintf(format_side, "%%-%ds", C4-2);
+	sprintf(format_side, "%%-%ds", C4); //-2
 //	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
-//	wclear(Prev);
 //	wclear(Raw);
 //	wclear(Next);
 //	clear();
@@ -250,40 +251,36 @@ void cadr() {
 
 	DIR *dir;
 	struct dirent *entry_prev;
-//	char str_line[SIZ] = {0};
-	char *str_line;
+//	char *str_line;
 
 	wclear(Raw);
+	wclear(Next);
 	if(RAW.ar_len > 0) { //главная колонка
-		for(i = 0; i < MENULEN; i++) {
-			if(RAW.ar[i+OFFSET]->d_type == DT_DIR)
+		for(i = OFFSET, j = 0; j < MENULEN; i++, j++) {
+			if(RAW.ar[i]->d_type == DT_DIR)
 				wattron(Raw, A_BOLD | COLOR_PAIR(5));
-			if(RAW.ar[i+OFFSET]->d_type == DT_LNK)
+			if(RAW.ar[i]->d_type == DT_LNK)
 				wattron(Raw, COLOR_PAIR(2));
-			if(RAW.ar[i+OFFSET]->d_type == DT_REG) {
-				lstat(RAW.ar[i+OFFSET]->d_name, &sb);
-				if(sb.st_mode & S_IXOTH)
+			if(RAW.ar[i]->d_type == DT_REG) {
+//				lstat(RAW.ar[i+OFFSET]->d_name, &sb);
+//				if(sb.st_mode & S_IXOTH)
+				if(access(RAW.ar[i]->d_name, X_OK) == F_OK)
 					wattron(Raw, COLOR_PAIR(1));
 			}
-			if(i+OFFSET == CURS)
+			if(i == CURS)
 				wattron(Raw, A_REVERSE);
-//			temp = bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format);
-//			memset(str_line, 0, SIZ);
-//			memcpy(str_line, RAW.ar[i+OFFSET]->d_name, temp);
-			str_line = strndup(RAW.ar[i+OFFSET]->d_name, bytesInPos(RAW.ar[i+OFFSET]->d_name, C2, &add_format));
+			temp = bytesInPos(RAW.ar[i]->d_name, C2, &add_format);
+			memcpy(buf, RAW.ar[i]->d_name, temp);
+			buf[temp] = '\0';
 
-//			memset(format_raw, 0, 7); //4
-			sprintf(format_raw, "%%-%ds", COLS/2-2 + add_format);
+			sprintf(format_raw, "%%-%ds", C2 + add_format);
 
-			mvwprintw(Raw, i, 1, format_raw, str_line);
-//			mvwprintw(Raw, i, 1, format_raw, RAW.ar[i+OFFSET]->d_name);
+			mvwprintw(Raw, j, 1, format_raw, buf);
 			wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
-			free(str_line);
 		}
 
-		wclear(Next);
 		if(RAW.ar[CURS]->d_type == DT_DIR ) { //выводим на экран третий столбец
-			dir = opendir(RAW.ar[CURS]->d_name);
+			dir = opendir(RAW.ar[CURS]->d_name); //access();
 			if(dir) {
 				ACCESS = 0;
 				for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
@@ -291,72 +288,65 @@ void cadr() {
 						i--;
 						continue;
 					}
-					else if(strchr(".", entry_prev->d_name[0])) { //прячем скрытые файлы флаг flag не глобальный
+					if(flag && entry_prev->d_name[0] == '.') { //прячем скрытые файлы флаг flag не глобальный
 						i--;
 						continue;
 					}
-//					memset(str_line, 0, SIZ);
-					int two;
-//					memcpy(str_line, entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
-					str_line = strndup(entry_prev->d_name, bytesInPos(entry_prev->d_name, C4, &two));
-					mvwprintw(Next, i, 1, format_side, str_line);
-//					mvwprintw(Next, i, 1, format_side, entry_prev->d_name);
-					free(str_line);
+					add_format = 0;
+					temp = bytesInPos(entry_prev->d_name, C4, &add_format);
+					memcpy(buf, entry_prev->d_name, temp);
+					buf[temp] = '\0';
+					sprintf(format_side, "%%-%ds", C4 + add_format);
+					if(i == 0) {
+						wattron(Next, A_REVERSE);
+						mvwprintw(Next, i, 1, format_side, buf);
+						wattroff(Next, A_REVERSE);
+					}
+					else
+						mvwprintw(Next, i, 1, format_side, buf);
 				}
 				closedir(dir);
 				if(!i) {
-//					memset(str_line, 0, SIZ);
-//					int three;
-//					memcpy(str_line, "Empty", bytesInPos("Empty", C4, &three));
-					if(C4 > 4)
-						str_line = strndup("Empty", 5);
-					else
-						str_line = strndup("Empty", C4);
+					memcpy(buf, "Empty", 6);
+					if(C4 < 5 && C4 > 0)
+						buf[C4] = '\0';
+					else if(C4 <= 0)
+						buf[1] = '\0';
+					sprintf(format_side, "%%-%ds", C4);
 					wattron(Next, COLOR_PAIR(3));
-//					if(C4 > 4)
-						mvwprintw(Next, 0, 1, format_side, str_line);
+					mvwprintw(Next, 0, 1, format_side, buf);
 					wattroff(Next, COLOR_PAIR(3));
-					free(str_line);
 				}
 			}
 			else {
 				ACCESS = 1;
-//				memset(str_line, 0, SIZ);
-//				int four;
-//				memcpy(str_line, "Not accessible", bytesInPos("Not accessible", C4, &four));
-				if(C4 > 13)
-					str_line = strndup("Not accessible", 14);
-				else
-					str_line = strndup("Not accessible", C4);
+				memcpy(buf, "Not accessible", 15);
+				if(C4 < 15 && C4 > 0)
+					buf[C4] = '\0';
+				else if(C4 <= 0)
+					buf[1] = '\0';
+				sprintf(format_side, "%%-%ds", C4);
 				wattron(Next, COLOR_PAIR(3));
-				mvwprintw(Next, 0, 1, format_side, str_line);
+				mvwprintw(Next, 0, 1, format_side, buf);
 				wattroff(Next, COLOR_PAIR(3));
-				free(str_line);
 			}
 		}
-		wrefresh(Next);
 	}
-	else { //wrefresh() выпадает
-//		memcpy(str_line, "Empty", COLS/2-2);
-//		memset(format_raw, 0, 7); //4
-//		temp = bytesInPos(str_line, C2, &add_format);
-		sprintf(format_raw, "%%-%ds", COLS/2-2); //+add_format
-		if(C2 > 4)
-			str_line = strndup("Empty", 5);
-		else
-			str_line = strndup("Empty", C2);
+	else {
+		memcpy(buf, "Empty", 6);
+		if(C2 < 5 && C2 > 0)
+			buf[C2] = '\0';
+		else if(C2 <= 0)
+			buf[1] = '\0';
+		sprintf(format_raw, "%%-%ds", C2); //+add_format
 		wattron(Raw, COLOR_PAIR(3));
-		mvwprintw(Raw, 0, 1, format_raw, str_line);
+		mvwprintw(Raw, 0, 1, format_raw, buf);
 		wattroff(Raw, COLOR_PAIR(3));
 	}
+	wrefresh(Next);
 	wrefresh(Raw);
-//	wclear(Raw);
-//	wrefresh(Prev);
 
-//	clear();
 //	refresh();
-//	wclear(Next);
-//	wrefresh(Prev);
 }
 
 void start_ncurses(void) {
@@ -383,18 +373,14 @@ void sig_handler(int signo) {
 	if(signo == SIGWINCH) {
 		endwin();
 //		clear();
-//		initscr();
 		refresh();
-//		wclear(Prev);
-//		wclear(Raw);
-//		wclear(Next);
 //		wresize(stdscr, COLS, LINES); //
 		int X = COLS/4;
 		int Y = LINES-2;
 		wresize(Prev, Y, X);
 		wresize(Raw, Y, COLS/2);
 		wresize(Next, Y, X);
-//		mvwin(Prev, 1, 0);
+		mvwin(Prev, 1, 0);
 		mvwin(Raw, 1, X);
 		mvwin(Next, 1, COLS/2+X);
 		OFFSET = 0;
