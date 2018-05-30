@@ -16,8 +16,10 @@ int main() {
 	signal(SIGWINCH, sig_handler);
 	signal(SIGINT, sig_handler);
 	start_ncurses();
-	entry = pwd(&RAW, getcwd(buf, SIZ), flag);
-	entry_p = pwd(&PREV, dirname(buf), flag);
+//	entry = pwd(&RAW, getcwd(buf, SIZ), flag);
+//	entry_p = pwd(&PREV, dirname(buf), flag);
+	entry = pwd(&RAW, ".", flag);
+	entry_p = pwd(&PREV, "..", flag);
 	if(RAW.ar_len < LINES-2)
 		MENULEN = RAW.ar_len;
 	else
@@ -73,15 +75,18 @@ int main() {
 				CURS = 0;
 				OFFSET = 0;
 				MENULEN = 0;
-				current = strdup(basename(buf));
-				chdir(dirname(buf));
+				current = strdup(basename(buf)); //нужна запись по хешу?!
+//				chdir(dirname(buf));
+				chdir("..");
 				reset(entry);
-				entry = pwd(&RAW, buf, flag);
+//				entry = pwd(&RAW, buf, flag);
+				entry = pwd(&RAW, ".", flag);
 				reset_p(entry_p);
-				entry_p = pwd(&PREV, dirname(buf), flag);
+//				entry_p = pwd(&PREV, dirname(buf), flag);
+				entry_p = pwd(&PREV, "..", flag);
 
 				for(int i = 0; i < RAW.ar_len; i++) {
-					if(!strcasecmp(current, RAW.ar[i]->d_name)) {
+					if(!strcasecmp(current, RAW.ar[i]->d_name)) { //нужен поиск по хешу?!
 						CURS = i;
 						break;
 					}
@@ -102,20 +107,23 @@ int main() {
 				if(RAW.ar_len > 0) {
 					if(ACCESS)
 						break;
-					getcwd(buf, SIZ);
+//					getcwd(buf, SIZ);
 					reset_p(entry_p);
-					entry_p = pwd(&PREV, buf, flag);
+//					entry_p = pwd(&PREV, buf, flag);
+					entry_p = pwd(&PREV, ".", flag);
 					//				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
-					if(buf[1] != '\0')
-						strcat(buf, "/");
-					strcat(buf, RAW.ar[CURS]->d_name);
-					chdir(buf);
-
+//					if(buf[1] != '\0')
+//						strcat(buf, "/");
+//					strcat(buf, RAW.ar[CURS]->d_name);
+//					chdir(buf);
+					chdir(RAW.ar[CURS]->d_name);
+					getcwd(buf, SIZ);
 					CURS = 0;
 					OFFSET = 0;
 					MENULEN = 0;
 					reset(entry);
 					entry = pwd(&RAW, buf, flag);
+//					entry = pwd(&RAW, ".", flag);
 					if((current = searchHash(buf, "")) != NULL) {
 						for(int i = 0; i < RAW.ar_len; i++) {
 							if(!strcasecmp(current, RAW.ar[i]->d_name)) {
@@ -141,7 +149,8 @@ int main() {
 				OFFSET = 0;
 				CURS = 0;
 				reset(entry);
-				entry = pwd(&RAW, getcwd(buf, SIZ), flag);
+//				entry = pwd(&RAW, getcwd(buf, SIZ), flag);
+				entry = pwd(&RAW, ".", flag);
 				for(int i = 0; i < RAW.ar_len; i++) {
 					if(!strcasecmp(current, RAW.ar[i]->d_name)) {
 						CURS = i;
@@ -156,8 +165,8 @@ int main() {
 					OFFSET = CURS - MENULEN+1;
 
 				reset_p(entry_p);
-				entry_p = pwd(&PREV, dirname(buf), flag);
-
+//				entry_p = pwd(&PREV, dirname(buf), flag);
+				entry_p = pwd(&PREV, "..", flag);
 				cadr();
 				cadr_p();
 				free(current);
@@ -249,8 +258,9 @@ void cadr() {
 //	box(Raw, 0, 0);
 //	box(Next, 0, 0);
 
-	DIR *dir;
-	struct dirent *entry_prev;
+//	DIR *dir;
+//	struct dirent *entry_prev;
+	static struct dirent **entry_n = NULL; //new
 //	char *str_line;
 
 	wclear(Raw);
@@ -280,32 +290,44 @@ void cadr() {
 		}
 
 		if(RAW.ar[CURS]->d_type == DT_DIR ) { //выводим на экран третий столбец
-			dir = opendir(RAW.ar[CURS]->d_name); //access();
-			if(dir) {
+			if(!access(RAW.ar[CURS]->d_name, R_OK)) {
 				ACCESS = 0;
-				for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
-					if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
-						i--;
-						continue;
-					}
-					if(flag && entry_prev->d_name[0] == '.') { //прячем скрытые файлы флаг flag не глобальный
-						i--;
-						continue;
-					}
+				if(entry_n)
+					reset_n(entry_n);
+				entry_n = pwd(&NEXT, RAW.ar[CURS]->d_name, flag);
+				for(i = 0; i < NEXT.ar_len; i++) {
+
 					add_format = 0;
-					temp = bytesInPos(entry_prev->d_name, C4, &add_format);
-					memcpy(buf, entry_prev->d_name, temp);
-					buf[temp] = '\0';
+					temp = bytesInPos(NEXT.ar[i]->d_name, C4, &add_format);
 					sprintf(format_side, "%%-%ds", C4 + add_format);
-					if(i == 0) {
-						wattron(Next, A_REVERSE);
-						mvwprintw(Next, i, 1, format_side, buf);
-						wattroff(Next, A_REVERSE);
-					}
-					else
-						mvwprintw(Next, i, 1, format_side, buf);
+					memcpy(buf, NEXT.ar[i]->d_name, temp);
+					buf[temp] = '\0';
+					mvwprintw(Next, i, 1, format_side, buf);
 				}
-				closedir(dir);
+//				dir = opendir(RAW.ar[CURS]->d_name);
+//				for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
+//					if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
+//						i--;
+//						continue;
+//					}
+//					if(flag && entry_prev->d_name[0] == '.') { //прячем скрытые файлы флаг flag не глобальный
+//						i--;
+//						continue;
+//					}
+//					add_format = 0;
+//					temp = bytesInPos(entry_prev->d_name, C4, &add_format);
+//					memcpy(buf, entry_prev->d_name, temp);
+//					buf[temp] = '\0';
+//					sprintf(format_side, "%%-%ds", C4 + add_format);
+//					if(i == 0) {
+//						wattron(Next, A_REVERSE);
+//						mvwprintw(Next, i, 1, format_side, buf);
+//						wattroff(Next, A_REVERSE);
+//					}
+//					else
+//						mvwprintw(Next, i, 1, format_side, buf);
+//				}
+//				closedir(dir);
 				if(!i) {
 					memcpy(buf, "Empty", 6);
 					if(C4 < 5 && C4 > 0)
@@ -418,4 +440,11 @@ void reset_p(struct dirent ** entry_p) {
 	}
 	free(entry_p);
 	free(PREV.ar);
+}
+void reset_n(struct dirent ** entry_n) {
+	for(int i = 0; i < NEXT.len; i++) {
+		free(entry_n[i]);
+	}
+	free(entry_n);
+	free(NEXT.ar);
 }

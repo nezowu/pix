@@ -50,4 +50,8 @@ int main() {
 //		free(RAW.ar[i]);
 //	}
 //	free(RAW.ar);
-}
+//					getcwd(buf, SIZ);
+//                                      if(buf[1] != '\0')
+//                                              strcat(buf, "/");
+//                                      strcat(buf, RAW.ar[CURS]->d_name);
+//                                      chdir(buf);}
