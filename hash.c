@@ -60,3 +60,13 @@ char * searchHash(char *path, char * name) {
 	Hash[i].len = len;
 	return Hash[0].name;
 }
+
+char * listHash(char *path) {
+	size_t i;
+	uint32_t hash = getHash(path);
+	for(i = 0; i < hashlen; i++) {
+		if(Hash[i].hash == hash)
+			return Hash[i].name;
+	}
+	return NULL;
+}

@@ -239,7 +239,7 @@ void cadr_p() {
 void cadr() {
 	ACCESS = 1;
 //	struct stat sb;
-
+	char *current;
 	int add_format = 0;
 	size_t temp;
 	char buf[SIZ];
@@ -248,7 +248,6 @@ void cadr() {
 	int C4 = COLS / 4 - 2;
 	char format_raw[7], format_side[7];
 	sprintf(format_side, "%%-%ds", C4); //-2
-//	sprintf(format_raw, "%%-%ds", COLS/2-2);
 
 //	wclear(Raw);
 //	wclear(Next);
@@ -258,10 +257,7 @@ void cadr() {
 //	box(Raw, 0, 0);
 //	box(Next, 0, 0);
 
-//	DIR *dir;
-//	struct dirent *entry_prev;
 	static struct dirent **entry_n = NULL; //new
-//	char *str_line;
 
 	wclear(Raw);
 	wclear(Next);
@@ -288,46 +284,36 @@ void cadr() {
 			mvwprintw(Raw, j, 1, format_raw, buf);
 			wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
 		}
-
+		getcwd(buf, SIZ);
 		if(RAW.ar[CURS]->d_type == DT_DIR ) { //выводим на экран третий столбец
 			if(!access(RAW.ar[CURS]->d_name, R_OK)) {
+				if(buf[1] != '\0')
+					strcat(buf, "/");
+				strcat(buf, RAW.ar[CURS]->d_name);
 				ACCESS = 0;
 				if(entry_n)
 					reset_n(entry_n);
 				entry_n = pwd(&NEXT, RAW.ar[CURS]->d_name, flag);
+				current = listHash(buf); 
 				for(i = 0; i < NEXT.ar_len; i++) {
-
 					add_format = 0;
 					temp = bytesInPos(NEXT.ar[i]->d_name, C4, &add_format);
 					sprintf(format_side, "%%-%ds", C4 + add_format);
 					memcpy(buf, NEXT.ar[i]->d_name, temp);
 					buf[temp] = '\0';
+					if(NEXT.ar[i]->d_type == DT_DIR)
+						wattron(Next, A_BOLD | COLOR_PAIR(5));
+					if(current) {
+					       	if(!strcasecmp(NEXT.ar[i]->d_name, current))
+							wattron(Next, A_REVERSE);
+					}
+					else {
+						if(i == 0)
+							wattron(Next, A_REVERSE);
+					}
 					mvwprintw(Next, i, 1, format_side, buf);
+					wattroff(Next, A_REVERSE | A_BOLD | COLOR_PAIR(5));					
 				}
-//				dir = opendir(RAW.ar[CURS]->d_name);
-//				for(i = 0; (entry_prev = readdir(dir)) != NULL; i++) {
-//					if(!strcasecmp(entry_prev->d_name, "..") || !strcasecmp(entry_prev->d_name, ".")) {
-//						i--;
-//						continue;
-//					}
-//					if(flag && entry_prev->d_name[0] == '.') { //прячем скрытые файлы флаг flag не глобальный
-//						i--;
-//						continue;
-//					}
-//					add_format = 0;
-//					temp = bytesInPos(entry_prev->d_name, C4, &add_format);
-//					memcpy(buf, entry_prev->d_name, temp);
-//					buf[temp] = '\0';
-//					sprintf(format_side, "%%-%ds", C4 + add_format);
-//					if(i == 0) {
-//						wattron(Next, A_REVERSE);
-//						mvwprintw(Next, i, 1, format_side, buf);
-//						wattroff(Next, A_REVERSE);
-//					}
-//					else
-//						mvwprintw(Next, i, 1, format_side, buf);
-//				}
-//				closedir(dir);
 				if(!i) {
 					memcpy(buf, "Empty", 6);
 					if(C4 < 5 && C4 > 0)
@@ -360,14 +346,13 @@ void cadr() {
 			buf[C2] = '\0';
 		else if(C2 <= 0)
 			buf[1] = '\0';
-		sprintf(format_raw, "%%-%ds", C2); //+add_format
+		sprintf(format_raw, "%%-%ds", C2);
 		wattron(Raw, COLOR_PAIR(3));
 		mvwprintw(Raw, 0, 1, format_raw, buf);
 		wattroff(Raw, COLOR_PAIR(3));
 	}
-	wrefresh(Next);
 	wrefresh(Raw);
-
+	wrefresh(Next);
 //	refresh();
 }
 
