@@ -12,12 +12,12 @@ typedef struct nm {
 Nm Hash = {0};
 static size_t hashlen = 0;
 
-void initHash(void) {
-//	memset(Hash, 0, sizeof(struct nm) * HASHSIZE);
-	hashlen = 0;
-}
+//void initHash(void) {
+////	memset(Hash, 0, sizeof(struct nm) * HASHSIZE);
+//	hashlen = 0;
+//}
 
-uint32_t getHash(char * key){
+static uint32_t getHash(char * key){
 	uint32_t i = 5381;
 //	uint64_t i = 0;
 	while (*key++)
@@ -34,8 +34,9 @@ char * searchHash(char *path, char * name) {
 	for(i = 0; i < hashlen; i++) {
 		if(Hash[i].hash == hash) {
 			if(len) {
-				memset(Hash[i].name, 0, SIZ);
+//				memset(Hash[i].name, 0, SIZ);
 				memcpy(Hash[i].name, name, len);
+				Hash[i].name[len] = '\0';
 			}
 			memcpy(&tmp, &Hash[i], sizeof(struct nm));
 			for(; i > 0; i--) {

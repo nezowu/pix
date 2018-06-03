@@ -1,5 +1,6 @@
 // консольный файловый пейджер pix.c wch.c hash.c ldir.c dir.h my.h
 #include "my.h"
+#include <wait.h>
 #define SIZ 256
 
 bool flag; //урать из глобальной после создания 3 колонки
@@ -26,7 +27,6 @@ int main() {
 		MENULEN = LINES-2;
 	cadr();
 	cadr_p();
-//	initHash();
 	while((key = getch()) != ERR) {
 		switch(key) {
 			case 'j':
@@ -67,10 +67,10 @@ int main() {
 				break;
 			case 'h':
 				if(!strcasecmp(getcwd(buf, SIZ), "/")) {
-					searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем базу
+//					searchHash(buf, RAW.ar[CURS]->d_name);
 					break;
 				}
-				if(RAW.ar_len > 0)
+				if(RAW.ar_len > 1) //было > 0
 					searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем базу
 				CURS = 0;
 				OFFSET = 0;
@@ -107,24 +107,17 @@ int main() {
 				if(RAW.ar_len > 0) {
 					if(ACCESS)
 						break;
-//					getcwd(buf, SIZ);
 					reset_p(entry_p);
-//					entry_p = pwd(&PREV, buf, flag);
 					entry_p = pwd(&PREV, ".", flag);
-					//				searchHash(buf, RAW.ar[CURS]->d_name); //запишем или перезапишем в базу
-//					if(buf[1] != '\0')
-//						strcat(buf, "/");
-//					strcat(buf, RAW.ar[CURS]->d_name);
-//					chdir(buf);
 					chdir(RAW.ar[CURS]->d_name);
-					getcwd(buf, SIZ);
+//					getcwd(buf, SIZ);
 					CURS = 0;
 					OFFSET = 0;
 					MENULEN = 0;
 					reset(entry);
-					entry = pwd(&RAW, buf, flag);
-//					entry = pwd(&RAW, ".", flag);
-					if((current = searchHash(buf, "")) != NULL) {
+//					entry = pwd(&RAW, buf, flag);
+					entry = pwd(&RAW, ".", flag);
+					if((current = searchHash(getcwd(buf, SIZ), "")) != NULL) {
 						for(int i = 0; i < RAW.ar_len; i++) {
 							if(!strcasecmp(current, RAW.ar[i]->d_name)) {
 								CURS = i;
@@ -171,6 +164,40 @@ int main() {
 				cadr_p();
 				free(current);
 				break;
+			case 's':
+				endwin();
+//				system("$SHELL");
+				pid_t pid = fork();
+				if(!pid) {
+					clear(); //удалить? тогда system();//Перехватить Ctrl+D ...?
+					execl("/bin/bash", "bash", NULL);
+					exit(EXIT_SUCCESS);
+				}
+				else
+					wait(NULL);
+				
+				current = strdup(RAW.ar[CURS]->d_name);
+				OFFSET = 0;
+				CURS = 0;
+				reset(entry);
+				entry = pwd(&RAW, ".", flag);
+				for(int i = 0; i < RAW.ar_len; i++) {
+					if(!strcasecmp(current, RAW.ar[i]->d_name)) {
+						CURS = i;
+						break;
+					}
+				}
+				if(RAW.ar_len < LINES-2)
+					MENULEN = RAW.ar_len;
+				else
+					MENULEN = LINES-2;
+				if(CURS > OFFSET + MENULEN-1)
+					OFFSET = CURS - MENULEN+1;
+
+				cadr();
+				refresh();
+				free(current);
+				break;
 			case 'q':
 				delwin(Prev);
 				delwin(Raw);
@@ -207,7 +234,7 @@ void cadr_p() {
 				offset = i - (LINES - 3);
 				break;
 			}
-		} // усли не найдено совпадений присвоить i первый индекс, фиг там!
+		} // если не найдено совпадений присвоить i первый индекс, фиг там!
 		for(j = offset; j < PREV.ar_len; j++) {
 			int one = 0;
 			size = bytesInPos(PREV.ar[j]->d_name, C4, &one);
@@ -249,10 +276,6 @@ void cadr() {
 	char format_raw[7], format_side[7];
 	sprintf(format_side, "%%-%ds", C4); //-2
 
-//	wclear(Raw);
-//	wclear(Next);
-//	clear();
-
 //	box(Prev, 0, 0);
 //	box(Raw, 0, 0);
 //	box(Next, 0, 0);
@@ -260,7 +283,6 @@ void cadr() {
 	static struct dirent **entry_n = NULL; //new
 
 	wclear(Raw);
-	wclear(Next);
 	if(RAW.ar_len > 0) { //главная колонка
 		for(i = OFFSET, j = 0; j < MENULEN; i++, j++) {
 			if(RAW.ar[i]->d_type == DT_DIR)
@@ -285,6 +307,7 @@ void cadr() {
 			wattroff(Raw, A_REVERSE | A_BOLD | COLOR_PAIR(5) | COLOR_PAIR(2));
 		}
 		getcwd(buf, SIZ);
+		wclear(Next);
 		if(RAW.ar[CURS]->d_type == DT_DIR ) { //выводим на экран третий столбец
 			if(!access(RAW.ar[CURS]->d_name, R_OK)) {
 				if(buf[1] != '\0')
@@ -339,8 +362,10 @@ void cadr() {
 				wattroff(Next, COLOR_PAIR(3));
 			}
 		}
+		wrefresh(Next);
 	}
 	else {
+		wclear(Next);
 		memcpy(buf, "Empty", 6);
 		if(C2 < 5 && C2 > 0)
 			buf[C2] = '\0';
@@ -350,38 +375,43 @@ void cadr() {
 		wattron(Raw, COLOR_PAIR(3));
 		mvwprintw(Raw, 0, 1, format_raw, buf);
 		wattroff(Raw, COLOR_PAIR(3));
+		wrefresh(Next);
 	}
 	wrefresh(Raw);
-	wrefresh(Next);
-//	refresh();
 }
 
 void start_ncurses(void) {
 	initscr();
-	endwin(); //что это? не едут лыжы!
+//	raw();
+//	endwin(); //что это? не едут лыжы!
 	cbreak();
+	noecho();
+	curs_set(FALSE);
+	clear();
 	start_color();
 	init_pair(1,COLOR_GREEN,0);
 	init_pair(2,COLOR_CYAN,0);
 	init_pair(3,COLOR_RED,0);
 	init_pair(4,COLOR_YELLOW,0);
 	init_pair(5,COLOR_BLUE,0);
-	noecho();
-	curs_set(FALSE);
 	int Y = LINES-2;
 	int X = COLS/4;
 	Prev = newwin(Y, X, 1, 0);
 	Raw = newwin(Y, COLS/2, 1, X);
 	Next = newwin(Y, X, 1, COLS/2+X);
 	refresh();
+//	wrefresh(Prev);
+//	wrefresh(Raw);
+//	wrefresh(Next);
 }
 
 void sig_handler(int signo) {
 	if(signo == SIGWINCH) {
+		clear();
 		endwin();
-//		clear();
 		refresh();
-//		wresize(stdscr, COLS, LINES); //
+//		resizeterm(LINES, COLS);
+//		wresize(stdscr, LINES, COLS); //
 		int X = COLS/4;
 		int Y = LINES-2;
 		wresize(Prev, Y, X);
@@ -402,7 +432,7 @@ void sig_handler(int signo) {
 		cadr_p();
 	}
 	else if(signo == SIGINT) {
-//END_PROG:
+//END_PROG: //написать atexit
 		delwin(Prev);
 		delwin(Raw);
 		delwin(Next);
@@ -411,7 +441,7 @@ void sig_handler(int signo) {
 			exit(1);
 	}
 }
-
+// убрать глобальные структуры и переписать в одну функцию
 void reset(struct dirent ** entry) {
 	for(int i = 0; i < RAW.len; i++) {
 		free(entry[i]);
